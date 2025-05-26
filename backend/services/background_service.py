@@ -4,11 +4,10 @@ from datetime import datetime, timedelta
 from typing import Callable, Dict, List
 
 from config import settings
+from database.session import SessionLocal
 from services.cache_service import CacheService
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from backend.database.session import SessionLocal
 
 logger = logging.getLogger(__name__)
 

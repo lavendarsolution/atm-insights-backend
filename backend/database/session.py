@@ -1,10 +1,11 @@
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import QueuePool
-from sqlalchemy.engine import Engine
 import logging
+
 from config import settings
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import QueuePool
 
 logger = logging.getLogger(__name__)
 
@@ -26,27 +27,36 @@ SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine,
-    expire_on_commit=False  # Keep objects accessible after commit
+    expire_on_commit=False,  # Keep objects accessible after commit
 )
 
 # Base class for all models
 Base = declarative_base()
+
 
 # PostgreSQL-specific optimizations
 @event.listens_for(Engine, "connect")
 def set_postgresql_settings(dbapi_connection, connection_record):
     """Set PostgreSQL-specific settings for performance"""
     if settings.database_url.startswith("postgresql"):
-        with dbapi_connection.cursor() as cursor:
-            try:
+        # Check if this is an asyncpg connection
+        if hasattr(dbapi_connection, "_protocol"):
+            # This is an asyncpg connection, skip sync cursor operations
+            logger.debug("Skipping sync cursor operations for asyncpg connection")
+            return
+
+        try:
+            # For psycopg2 connections, use the cursor normally
+            with dbapi_connection.cursor() as cursor:
                 # Optimize for time-series workloads
                 cursor.execute("SET statement_timeout = '30s'")
                 cursor.execute("SET lock_timeout = '10s'")
                 cursor.execute("SET idle_in_transaction_session_timeout = '60s'")
-                # Note: shared_preload_libraries cannot be set at runtime
-                # This should be configured in postgresql.conf or Docker environment
-            except Exception as e:
-                logger.warning(f"Could not set PostgreSQL settings: {str(e)}")
+                # Commit the settings
+                dbapi_connection.commit()
+        except Exception as e:
+            logger.warning(f"Could not set PostgreSQL settings: {str(e)}")
+
 
 def get_db() -> Session:
     """
@@ -63,6 +73,7 @@ def get_db() -> Session:
     finally:
         db.close()
 
+
 async def init_db():
     """
     Initialize database with extensions and optimizations
@@ -70,24 +81,16 @@ async def init_db():
     """
     try:
         with engine.connect() as conn:
-            # Enable TimescaleDB extension
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb"))
-            
-            # Enable other useful extensions
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_stat_statements"))
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gin"))
-            
-            # Set timezone
-            conn.execute(text("SET timezone = 'UTC'"))
-            
             conn.commit()
-            
+
         logger.info("✅ Database initialization completed")
-        
+
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {str(e)}")
         # Don't raise the exception if it's just extension issues in development
         if settings.is_development:
-            logger.warning("⚠️ Continuing without TimescaleDB extensions in development mode")
+            logger.warning(
+                "⚠️ Continuing without TimescaleDB extensions in development mode"
+            )
         else:
             raise

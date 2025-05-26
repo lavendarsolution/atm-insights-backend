@@ -27,7 +27,7 @@ help:
 dev:
 	@echo "🚀 Starting development environment..."
 	@cp .env.example .env 2>/dev/null || true
-	docker-compose up -d postgres redis fastapi_backend
+	docker-compose up -d postgres redis backend
 
 # Full system with simulator and diagnostics
 full:
@@ -65,7 +65,7 @@ clean:
 prod:
 	@echo "🌟 Starting production environment..."
 	@if [ ! -f .env.production ]; then echo "❌ .env.production file not found!"; exit 1; fi
-	docker-compose --env-file .env.production up -d postgres redis fastapi_backend
+	docker-compose --env-file .env.production up -d postgres redis backend
 
 prod-build:
 	@echo "🔨 Building for production..."
@@ -74,18 +74,18 @@ prod-build:
 # API tests
 test:
 	@echo "🧪 Running API tests..."
-	docker-compose exec fastapi_backend python -m pytest
+	docker-compose exec backend python -m pytest
 
 # Shell access
 shell-api:
-	docker-compose exec fastapi_backend /bin/bash
+	docker-compose exec backend /bin/bash
 
 shell-db:
-	docker-compose exec postgres psql -U admin -d atm_insight
+	docker-compose exec postgres psql -U admin -d atm_insights
 
 # Database migrations (if using Alembic)
 db-migrate:
-	docker-compose exec fastapi_backend alembic upgrade head
+	docker-compose exec backend alembic upgrade head
 
 # Quick setup for new developers
 setup:

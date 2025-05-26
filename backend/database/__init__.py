@@ -1,8 +1,9 @@
-from .session import engine, SessionLocal, get_db, init_db
+from .session import Base, SessionLocal, engine, get_db, init_db
 
 __all__ = [
     "engine",
-    "SessionLocal", 
+    "SessionLocal",
     "get_db",
-    "init_db"
+    "init_db",
+    "Base",
 ]

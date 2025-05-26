@@ -1,24 +1,9 @@
-import uuid
 from datetime import datetime
 
-from sqlalchemy import (
-    Boolean,
-    CheckConstraint,
-    Column,
-    DateTime,
-    Float,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
-)
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from database import Base
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-
-from backend.database import Base
 
 
 class ATMTelemetry(Base):
@@ -72,39 +57,7 @@ class ATMTelemetry(Base):
     additional_metrics = Column(JSONB)
 
     # Metadata
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    created_at = Column(DateTime, default=datetime.now(), nullable=False)
 
     # Relationships
     atm = relationship("ATM", back_populates="telemetries")
-
-    # Constraints and indexes
-    __table_args__ = (
-        CheckConstraint(
-            "temperature_celsius >= -50 AND temperature_celsius <= 100",
-            name="valid_temperature",
-        ),
-        CheckConstraint(
-            "humidity_percent >= 0 AND humidity_percent <= 100", name="valid_humidity"
-        ),
-        CheckConstraint(
-            "cash_level_percent >= 0 AND cash_level_percent <= 100",
-            name="valid_cash_level",
-        ),
-        CheckConstraint(
-            "cpu_usage_percent >= 0 AND cpu_usage_percent <= 100",
-            name="valid_cpu_usage",
-        ),
-        CheckConstraint(
-            "memory_usage_percent >= 0 AND memory_usage_percent <= 100",
-            name="valid_memory_usage",
-        ),
-        CheckConstraint("transactions_count >= 0", name="non_negative_transactions"),
-        CheckConstraint(
-            "failed_transactions_count >= 0", name="non_negative_failed_transactions"
-        ),
-        # Composite indexes for common queries
-        Index("idx_telemetry_atm_time", "atm_id", "time"),
-        Index("idx_telemetry_status_time", "status", "time"),
-        Index("idx_telemetry_error_time", "error_code", "time"),
-        Index("idx_telemetry_time_only", "time"),  # For time-range queries
-    )

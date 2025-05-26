@@ -1,24 +1,20 @@
 import uuid
-from datetime import datetime
 
+from database import Base
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
-    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-
-from backend.database import Base
 
 
 class AlertRule(Base):
@@ -51,14 +47,8 @@ class AlertRule(Base):
     creator = relationship("User", back_populates="created_alerts")
     alerts = relationship("Alert", back_populates="rule")
 
-    # Constraints
-    __table_args__ = (
-        CheckConstraint("cooldown_minutes >= 0", name="non_negative_cooldown"),
-        Index("idx_alert_rule_active_severity", "is_active", "severity"),
-    )
 
-
-class Alert(Base, TimestampMixin):
+class Alert(Base):
     """Alert instances/history"""
 
     __tablename__ = "alerts"
@@ -93,10 +83,3 @@ class Alert(Base, TimestampMixin):
     rule = relationship("AlertRule", back_populates="alerts")
     atm = relationship("ATM", back_populates="alerts")
     acknowledged_by_user = relationship("User", back_populates="acknowledged_alerts")
-
-    # Constraints
-    __table_args__ = (
-        Index("idx_alert_atm_status", "atm_id", "status"),
-        Index("idx_alert_triggered_time", "triggered_at"),
-        Index("idx_alert_severity_status", "severity", "status"),
-    )

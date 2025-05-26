@@ -52,7 +52,7 @@ make full
 #### Individual Service Launch
 ```bash
 # Core services only
-docker-compose up -d postgres redis fastapi_backend
+docker-compose up -d postgres redis backend
 
 # Add simulator
 docker-compose --profile simulator up -d
@@ -216,7 +216,7 @@ SEND_INTERVAL=15
 
 ```bash
 # Start core services
-docker-compose up -d postgres redis fastapi_backend
+docker-compose up -d postgres redis backend
 
 # Start with simulator
 docker-compose --profile simulator up -d
@@ -340,7 +340,7 @@ psql -c "SELECT * FROM atm_telemetry ORDER BY time DESC LIMIT 10;"
 make test
 
 # Run specific test categories
-docker-compose exec fastapi_backend python -m pytest tests/
+docker-compose exec backend python -m pytest tests/
 ```
 
 ### Manual Testing
@@ -490,7 +490,7 @@ docker stats
 docker-compose logs atm_simulator
 
 # Verify API connectivity
-docker-compose exec atm_simulator curl http://fastapi_backend:8000/health
+docker-compose exec atm_simulator curl http://backend:8000/health
 ```
 
 ### Performance Tuning
