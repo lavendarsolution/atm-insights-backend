@@ -80,42 +80,6 @@ curl http://localhost:8000/api/v1/atms/status
 - 🔍 **Schema Explorer**: http://localhost:8000/redoc
 - ❤️ **Health Check**: http://localhost:8000/health
 
-## 📁 Project Structure
-
-```
-atm-monitoring-system/
-├── 📁 1-fastapi-backend/        # FastAPI Backend Server
-│   ├── main.py                  # FastAPI application
-│   ├── config.py                # Configuration management
-│   ├── database.py              # DB models and connections
-│   ├── models.py                # Pydantic schemas
-│   ├── Dockerfile              # Backend container
-│   └── requirements.txt         # Python dependencies
-├── 📁 2-atm-simulator/          # ATM Simulator
-│   ├── simulator.py             # Core simulation logic
-│   ├── config.py                # Simulator configuration
-│   ├── run_simulator.py         # Simulator entry point
-│   ├── Dockerfile              # Simulator container
-│   └── requirements.txt         # Python dependencies
-├── 📁 3-diagnostics/            # Diagnostics & ML Engine
-│   ├── diagnostic_engine.py     # Rule-based diagnostics
-│   ├── ml_models.py             # Machine learning models
-│   ├── run_diagnostics.py       # Diagnostics entry point
-│   ├── Dockerfile              # Diagnostics container
-│   └── requirements.txt         # Python dependencies
-├── 📁 scripts/                  # Database & utility scripts
-│   ├── init-timescale.sql       # TimescaleDB initialization
-│   └── wait-for-it.sh           # Service dependency waiter
-├── 🐳 docker-compose.yml        # Main Docker configuration
-├── 🐳 docker-compose.override.yml # Development overrides
-├── ⚙️ .env                      # Development environment variables
-├── ⚙️ .env.production           # Production environment variables
-├── ⚙️ .env.example              # Environment template
-├── 📋 Makefile                  # Convenience commands
-├── 📄 README.md                 # This file
-└── 📄 .gitignore               # Git ignore rules
-```
-
 ## 🛠️ System Architecture
 
 ### Component Overview

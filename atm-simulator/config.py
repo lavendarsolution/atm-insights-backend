@@ -9,9 +9,16 @@ SIMULATOR_CONFIG = {
     "batch_size": 50,
 }
 
-# Rest of your existing config...
-REGIONS = ["LEGION-1", "LEGION-2", "LEGION-3", "LEGION-4", "LEGION-5"]
+REGIONS = ["AIRPORT", "SUPERMARKET", "MALL", "HOSPITAL", "UNIVERSITY"]
 ATM_MODELS = ["SecureMax Pro", "CashFlow Elite", "MoneyTech X1", "SafeBank 2000"]
+ATM_MANUFACTURERS = [
+    "SecureTech",
+    "CashFlow",
+    "MoneyTech",
+    "SafeBank",
+    "ATM Innovations",
+    "Global Cash Systems",
+]
 
 ERROR_CODES = {
     "E001": "Card reader malfunction",
