@@ -3,9 +3,9 @@ from typing import Optional
 
 # Create global config instance
 SIMULATOR_CONFIG = {
-    "num_atms": 500,
+    "num_atms": 612,
     "api_base_url": "http://localhost:8000",
-    "send_interval_seconds": 30,
+    "send_interval_seconds": 10,
     "batch_size": 50,
 }
 

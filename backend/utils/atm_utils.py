@@ -83,7 +83,7 @@ class ATMStatsCalculator:
         Score: 0-100 (100 = perfect health)
         """
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+            cutoff_time = datetime.now() - timedelta(hours=hours)
 
             # Get recent telemetry data
             telemetry_query = text(
@@ -325,7 +325,7 @@ class ATMMaintenanceHelper:
                 return False
 
             atm.status = "maintenance"
-            atm.updated_at = datetime.utcnow()
+            atm.updated_at = datetime.now()
             db.commit()
 
             logger.info(f"Scheduled ATM {atm_id} for maintenance. Reason: {reason}")
@@ -369,8 +369,8 @@ class ATMDataImporter:
                     model=row.get("model", "").strip(),
                     manufacturer=row.get("manufacturer", "").strip(),
                     status=row.get("status", "active").lower(),
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
                 )
 
                 db.add(new_atm)

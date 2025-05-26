@@ -49,8 +49,8 @@ async def create_atm(atm_data: ATMCreate, db: Session = Depends(get_db)):
             model=atm_data.model,
             manufacturer=atm_data.manufacturer,
             status=atm_data.status or "active",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
         db.add(new_atm)
@@ -195,7 +195,7 @@ async def update_atm(atm_id: str, atm_data: ATMUpdate, db: Session = Depends(get
         for field, value in update_data.items():
             setattr(atm, field, value)
 
-        atm.updated_at = datetime.utcnow()
+        atm.updated_at = datetime.now()
 
         db.commit()
         db.refresh(atm)

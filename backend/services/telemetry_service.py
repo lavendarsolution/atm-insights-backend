@@ -13,17 +13,17 @@ logger = logging.getLogger(__name__)
 
 
 class TelemetryService:
-    """High-performance telemetry processing service"""
+    """Optimized telemetry processing service for essential ATM data"""
 
     def __init__(self, cache_service: CacheService):
         self.cache_service = cache_service
         self.batch_buffer: List[Dict] = []
-        self.last_flush = datetime.utcnow()
+        self.last_flush = datetime.now()
 
     async def process_telemetry_batch(
         self, db: Session, telemetry_list: List[Dict]
     ) -> Dict:
-        """Process a batch of telemetry data efficiently"""
+        """Process a batch of optimized telemetry data efficiently"""
         try:
             processed = 0
             errors = []
@@ -33,26 +33,24 @@ class TelemetryService:
             for telemetry_data in telemetry_list:
                 try:
                     # Parse timestamp
-                    timestamp = datetime.fromisoformat(
-                        telemetry_data["timestamp"].replace("Z", "+00:00")
-                    )
+                    timestamp_str = telemetry_data["timestamp"]
+                    if timestamp_str.endswith("Z"):
+                        timestamp_str = timestamp_str.replace("Z", "+00:00")
+                    timestamp = datetime.fromisoformat(timestamp_str)
 
-                    # Create telemetry object
+                    # Create optimized telemetry object with essential fields only
                     telemetry_obj = ATMTelemetry(
                         time=timestamp,
                         atm_id=telemetry_data["atm_id"],
                         status=telemetry_data["status"],
-                        temperature_celsius=telemetry_data.get("temperature"),
-                        cash_level_percent=telemetry_data.get("cash_level"),
-                        transactions_count=telemetry_data.get("transactions_count", 0),
-                        failed_transactions_count=telemetry_data.get(
-                            "failed_transactions", 0
-                        ),
-                        cpu_usage_percent=telemetry_data.get("cpu_usage"),
-                        memory_usage_percent=telemetry_data.get("memory_usage"),
-                        disk_usage_percent=telemetry_data.get("disk_usage"),
-                        network_latency_ms=telemetry_data.get("network_latency_ms"),
                         uptime_seconds=telemetry_data.get("uptime_seconds"),
+                        cash_level_percent=telemetry_data.get("cash_level_percent"),
+                        temperature_celsius=telemetry_data.get("temperature_celsius"),
+                        cpu_usage_percent=telemetry_data.get("cpu_usage_percent"),
+                        memory_usage_percent=telemetry_data.get("memory_usage_percent"),
+                        disk_usage_percent=telemetry_data.get("disk_usage_percent"),
+                        network_status=telemetry_data.get("network_status"),
+                        network_latency_ms=telemetry_data.get("network_latency_ms"),
                         error_code=telemetry_data.get("error_code"),
                         error_message=telemetry_data.get("error_message"),
                     )
@@ -72,6 +70,9 @@ class TelemetryService:
 
                 # Update cache for recent data
                 await self._update_cache_for_batch(telemetry_objects)
+
+                # Trigger alert checking for critical conditions
+                await self._check_alerts_for_batch(telemetry_objects)
 
             return {"processed": processed, "errors": errors, "success": processed > 0}
 
@@ -100,10 +101,14 @@ class TelemetryService:
                     "atm_id": latest_telemetry.atm_id,
                     "time": latest_telemetry.time.isoformat(),
                     "status": latest_telemetry.status,
-                    "temperature": latest_telemetry.temperature_celsius,
-                    "cash_level": latest_telemetry.cash_level_percent,
-                    "transactions_count": latest_telemetry.transactions_count,
-                    "failed_transactions": latest_telemetry.failed_transactions_count,
+                    "uptime_seconds": latest_telemetry.uptime_seconds,
+                    "cash_level_percent": latest_telemetry.cash_level_percent,
+                    "temperature_celsius": latest_telemetry.temperature_celsius,
+                    "cpu_usage_percent": latest_telemetry.cpu_usage_percent,
+                    "memory_usage_percent": latest_telemetry.memory_usage_percent,
+                    "disk_usage_percent": latest_telemetry.disk_usage_percent,
+                    "network_status": latest_telemetry.network_status,
+                    "network_latency_ms": latest_telemetry.network_latency_ms,
                     "error_code": latest_telemetry.error_code,
                     "error_message": latest_telemetry.error_message,
                 }
@@ -120,112 +125,171 @@ class TelemetryService:
         except Exception as e:
             logger.warning(f"Cache update failed: {str(e)}")
 
-    async def get_dashboard_stats(self, db: Session) -> Dict:
-        """Get optimized dashboard statistics"""
-        cache_key = "dashboard_stats"
-
-        # Try cache first
-        cached_stats = await self.cache_service.get(cache_key)
-        if cached_stats:
-            return cached_stats
-
+    async def _check_alerts_for_batch(self, telemetry_objects: List[ATMTelemetry]):
+        """Check for alert conditions in the batch"""
         try:
-            # Use optimized query with materialized view
-            stats_query = text(
-                """
-                SELECT 
-                    COUNT(*) as total_atms,
-                    COUNT(*) FILTER (WHERE effective_status = 'online') as online_atms,
-                    COUNT(*) FILTER (WHERE effective_status = 'offline') as offline_atms,
-                    COUNT(*) FILTER (WHERE effective_status = 'error') as error_atms,
-                    COALESCE(AVG(cash_level_percent), 0) as avg_cash_level,
-                    COALESCE(SUM(transactions_count), 0) as total_transactions,
-                    COUNT(*) FILTER (WHERE cash_level_percent < 20 OR error_code IS NOT NULL) as critical_alerts
-                FROM atm_status_summary
-            """
-            )
+            alerts = []
 
-            result = db.execute(stats_query).fetchone()
+            for telemetry in telemetry_objects:
+                # Check critical cash level
+                if (
+                    telemetry.cash_level_percent is not None
+                    and telemetry.cash_level_percent <= 15
+                ):
+                    alerts.append(
+                        {
+                            "atm_id": telemetry.atm_id,
+                            "severity": "critical",
+                            "type": "cash_level_critical",
+                            "message": f"Critical cash level: {telemetry.cash_level_percent}%",
+                            "timestamp": telemetry.time.isoformat(),
+                        }
+                    )
 
-            stats = {
-                "total_atms": result.total_atms or 0,
-                "online_atms": result.online_atms or 0,
-                "offline_atms": result.offline_atms or 0,
-                "error_atms": result.error_atms or 0,
-                "total_transactions_today": result.total_transactions or 0,
-                "avg_cash_level": round(result.avg_cash_level or 0, 1),
-                "critical_alerts": result.critical_alerts or 0,
-                "last_updated": datetime.utcnow().isoformat(),
-            }
+                # Check temperature alerts
+                if telemetry.temperature_celsius is not None:
+                    if telemetry.temperature_celsius > 35:
+                        alerts.append(
+                            {
+                                "atm_id": telemetry.atm_id,
+                                "severity": "warning",
+                                "type": "temperature_high",
+                                "message": f"High temperature: {telemetry.temperature_celsius}°C",
+                                "timestamp": telemetry.time.isoformat(),
+                            }
+                        )
+                    elif telemetry.temperature_celsius < 5:
+                        alerts.append(
+                            {
+                                "atm_id": telemetry.atm_id,
+                                "severity": "warning",
+                                "type": "temperature_low",
+                                "message": f"Low temperature: {telemetry.temperature_celsius}°C",
+                                "timestamp": telemetry.time.isoformat(),
+                            }
+                        )
 
-            # Cache for fast access
-            await self.cache_service.set(
-                cache_key, stats, ttl=settings.dashboard_cache_ttl
-            )
+                # Check CPU usage
+                if (
+                    telemetry.cpu_usage_percent is not None
+                    and telemetry.cpu_usage_percent > 80
+                ):
+                    alerts.append(
+                        {
+                            "atm_id": telemetry.atm_id,
+                            "severity": "warning",
+                            "type": "cpu_high",
+                            "message": f"High CPU usage: {telemetry.cpu_usage_percent}%",
+                            "timestamp": telemetry.time.isoformat(),
+                        }
+                    )
 
-            return stats
+                # Check memory usage
+                if (
+                    telemetry.memory_usage_percent is not None
+                    and telemetry.memory_usage_percent > 85
+                ):
+                    alerts.append(
+                        {
+                            "atm_id": telemetry.atm_id,
+                            "severity": "warning",
+                            "type": "memory_high",
+                            "message": f"High memory usage: {telemetry.memory_usage_percent}%",
+                            "timestamp": telemetry.time.isoformat(),
+                        }
+                    )
+
+                # Check error codes
+                if telemetry.error_code:
+                    alerts.append(
+                        {
+                            "atm_id": telemetry.atm_id,
+                            "severity": "error",
+                            "type": "error_reported",
+                            "message": f"Error {telemetry.error_code}: {telemetry.error_message or 'Unknown error'}",
+                            "timestamp": telemetry.time.isoformat(),
+                        }
+                    )
+
+                # Check network connectivity
+                if telemetry.network_status == "disconnected":
+                    alerts.append(
+                        {
+                            "atm_id": telemetry.atm_id,
+                            "severity": "critical",
+                            "type": "network_disconnected",
+                            "message": "ATM network disconnected",
+                            "timestamp": telemetry.time.isoformat(),
+                        }
+                    )
+
+            # Cache alerts for dashboard
+            if alerts:
+                await self.cache_service.set("recent_alerts", alerts, ttl=300)
+                logger.info(f"Generated {len(alerts)} alerts from telemetry batch")
 
         except Exception as e:
-            logger.error(f"Error getting dashboard stats: {str(e)}")
-            raise
+            logger.warning(f"Alert checking failed: {str(e)}")
 
-    async def get_atm_status_list(self, db: Session) -> List[Dict]:
-        """Get optimized ATM status list"""
-        cache_key = "atm_status_list"
-
-        # Try cache first
-        cached_list = await self.cache_service.get(cache_key)
-        if cached_list:
-            return cached_list
-
+    async def get_recent_alerts(self) -> List[Dict]:
+        """Get recent alerts from cache"""
         try:
-            # Use materialized view for performance
-            status_query = text(
+            alerts = await self.cache_service.get("recent_alerts")
+            return alerts or []
+        except Exception as e:
+            logger.warning(f"Error getting recent alerts: {str(e)}")
+            return []
+
+    async def get_atm_telemetry_history(
+        self, db: Session, atm_id: str, hours: int = 24
+    ) -> List[Dict]:
+        """Get telemetry history for specific ATM"""
+        try:
+            cutoff_time = datetime.now() - timedelta(hours=hours)
+
+            history_query = text(
                 """
                 SELECT 
-                    atm_id,
-                    name,
-                    region,
-                    effective_status as status,
-                    last_update,
-                    temperature_celsius,
+                    time,
+                    status,
                     cash_level_percent,
-                    transactions_count,
+                    temperature_celsius,
+                    cpu_usage_percent,
+                    memory_usage_percent,
+                    network_status,
+                    network_latency_ms,
                     error_code,
                     error_message
-                FROM atm_status_summary
-                ORDER BY atm_id
+                FROM atm_telemetry 
+                WHERE atm_id = :atm_id AND time >= :cutoff_time
+                ORDER BY time DESC
+                LIMIT 1000
             """
             )
 
-            results = db.execute(status_query).fetchall()
+            results = db.execute(
+                history_query, {"atm_id": atm_id, "cutoff_time": cutoff_time}
+            ).fetchall()
 
-            atm_statuses = []
+            history = []
             for row in results:
-                atm_statuses.append(
+                history.append(
                     {
-                        "atm_id": row.atm_id,
-                        "name": row.name,
-                        "region": row.region,
+                        "time": row.time.isoformat(),
                         "status": row.status,
-                        "last_update": (
-                            row.last_update.isoformat() if row.last_update else None
-                        ),
-                        "temperature": row.temperature_celsius,
-                        "cash_level": row.cash_level_percent,
-                        "transactions_today": row.transactions_count or 0,
+                        "cash_level_percent": row.cash_level_percent,
+                        "temperature_celsius": row.temperature_celsius,
+                        "cpu_usage_percent": row.cpu_usage_percent,
+                        "memory_usage_percent": row.memory_usage_percent,
+                        "network_status": row.network_status,
+                        "network_latency_ms": row.network_latency_ms,
                         "error_code": row.error_code,
                         "error_message": row.error_message,
                     }
                 )
 
-            # Cache the results
-            await self.cache_service.set(
-                cache_key, atm_statuses, ttl=settings.dashboard_cache_ttl
-            )
-
-            return atm_statuses
+            return history
 
         except Exception as e:
-            logger.error(f"Error getting ATM status list: {str(e)}")
-            raise
+            logger.error(f"Error getting telemetry history for {atm_id}: {str(e)}")
+            return []

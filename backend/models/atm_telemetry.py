@@ -2,19 +2,18 @@ from datetime import datetime
 
 from database import Base
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 
 class ATMTelemetry(Base):
     """
-    ATM telemetry data - optimized for TimescaleDB
-    This will be converted to a hypertable via migration
+    Optimized ATM telemetry data model for MVP
+    Essential fields only for TimescaleDB hypertable
     """
 
     __tablename__ = "atm_telemetry"
 
-    # Primary key and time dimension
+    # Primary key and time dimension (TimescaleDB requirement)
     time = Column(DateTime, nullable=False, primary_key=True)
     atm_id = Column(
         String(20),
@@ -23,41 +22,30 @@ class ATMTelemetry(Base):
         primary_key=True,
     )
 
-    # Operational metrics
-    status = Column(String(20), nullable=False, index=True)
-    uptime_seconds = Column(Integer)
+    # Essential operational metrics
+    status = Column(
+        String(20), nullable=False, index=True
+    )  # online|offline|error|maintenance
+    uptime_seconds = Column(Integer)  # System uptime
 
-    # Environmental metrics
-    temperature_celsius = Column(Float)
-    humidity_percent = Column(Float)
+    # Critical business metric
+    cash_level_percent = Column(Float)  # Most important for ATM operations
 
-    # Transaction metrics
-    transactions_count = Column(Integer, default=0)
-    failed_transactions_count = Column(Integer, default=0)
-    transaction_amount_sum = Column(Float)  # Total transaction amount
-
-    # Hardware health metrics
-    cash_level_percent = Column(Float)
-    receipt_paper_level = Column(Float)
-    ink_level_percent = Column(Float)
+    # Environmental monitoring
+    temperature_celsius = Column(Float)  # Hardware health indicator
 
     # System performance metrics
-    cpu_usage_percent = Column(Float)
-    memory_usage_percent = Column(Float)
-    disk_usage_percent = Column(Float)
-    network_latency_ms = Column(Integer)
-    network_bandwidth_mbps = Column(Float)
+    cpu_usage_percent = Column(Float)  # System performance
+    memory_usage_percent = Column(Float)  # System performance
+    disk_usage_percent = Column(Float)  # Storage monitoring
 
-    # Error tracking
-    error_code = Column(String(10), index=True)
-    error_message = Column(Text)
-    error_count = Column(Integer, default=0)
+    # Network connectivity
+    network_status = Column(String(20), index=True)  # connected|disconnected|unstable
+    network_latency_ms = Column(Integer)  # Connection quality
 
-    # Additional flexible data
-    additional_metrics = Column(JSONB)
-
-    # Metadata
-    created_at = Column(DateTime, default=datetime.now(), nullable=False)
+    # Error tracking for alerts
+    error_code = Column(String(10), index=True)  # Standardized error codes
+    error_message = Column(Text)  # Human-readable error description
 
     # Relationships
     atm = relationship("ATM", back_populates="telemetries")

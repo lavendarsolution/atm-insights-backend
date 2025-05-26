@@ -24,13 +24,6 @@ class BackgroundTaskService:
         """Start all background tasks"""
         self.is_running = True
 
-        # Start periodic tasks
-        self.running_tasks["refresh_materialized_views"] = asyncio.create_task(
-            self._periodic_task(
-                self._refresh_materialized_views, 300
-            )  # Every 5 minutes
-        )
-
         self.running_tasks["cleanup_old_cache"] = asyncio.create_task(
             self._periodic_task(self._cleanup_old_cache, 3600)  # Every hour
         )
@@ -85,51 +78,6 @@ class BackgroundTaskService:
             logger.debug(f"Error checking if table {table_name} exists: {str(e)}")
             return False
 
-    async def _refresh_materialized_views(self):
-        """Refresh materialized views for performance"""
-        try:
-            db = SessionLocal()
-            try:
-                # Check if the materialized view exists first
-                check_view_exists = text(
-                    """
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_name = 'atm_status_summary' 
-                        AND table_type = 'BASE TABLE'
-                    )
-                """
-                )
-
-                view_exists = db.execute(check_view_exists).scalar()
-
-                if view_exists:
-                    # Refresh ATM status summary view
-                    refresh_query = text(
-                        "REFRESH MATERIALIZED VIEW CONCURRENTLY atm_status_summary"
-                    )
-                    db.execute(refresh_query)
-                    db.commit()
-
-                    # Invalidate related cache
-                    await self.cache_service.invalidate_pattern("dashboard_*")
-                    await self.cache_service.invalidate_pattern("atm_status_*")
-
-                    logger.debug("Materialized views refreshed")
-                else:
-                    logger.debug(
-                        "Materialized view atm_status_summary does not exist, skipping refresh"
-                    )
-
-            except Exception as e:
-                logger.debug(f"Could not refresh materialized views: {str(e)}")
-                db.rollback()
-            finally:
-                db.close()
-
-        except Exception as e:
-            logger.error(f"Error refreshing materialized views: {str(e)}")
-
     async def _cleanup_old_cache(self):
         """Clean up old cache entries"""
         try:
@@ -183,7 +131,7 @@ class BackgroundTaskService:
                 health_metrics = {
                     "recent_telemetry_count": recent_count or 0,
                     "stuck_atms_count": stuck_atms or 0,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now().isoformat(),
                 }
 
                 # Cache health metrics
