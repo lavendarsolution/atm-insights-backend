@@ -81,6 +81,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+  
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - atm_network
 
   # ATM Simulator (optional, can run separately)
   atm_simulator:
@@ -126,6 +142,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  pgadmin_data:
   # diagnostics_models:
 
 networks:

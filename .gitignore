@@ -57,7 +57,6 @@ logs/
 # ML Models
 *.pkl
 *.joblib
-models/
 
 # Docker
 .dockerignore

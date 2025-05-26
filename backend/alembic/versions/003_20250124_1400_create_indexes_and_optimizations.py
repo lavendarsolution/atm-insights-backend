@@ -5,38 +5,48 @@ Revises: 002
 Create Date: 2025-01-24 14:00:00.000000
 
 """
+
 from typing import Sequence, Union
-from alembic import op
+
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '003'
-down_revision: Union[str, None] = '002'
+revision: str = "003"
+down_revision: Union[str, None] = "002"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+
 def upgrade() -> None:
     # Create partial indexes for performance
-    op.execute("""
+    op.execute(
+        """
         CREATE INDEX CONCURRENTLY idx_telemetry_recent_24h 
         ON atm_telemetry (atm_id, time DESC) 
         WHERE time >= NOW() - INTERVAL '24 hours';
-    """)
-    
-    op.execute("""
+    """
+    )
+
+    op.execute(
+        """
         CREATE INDEX CONCURRENTLY idx_telemetry_errors_recent 
         ON atm_telemetry (atm_id, error_code, time DESC) 
         WHERE error_code IS NOT NULL AND time >= NOW() - INTERVAL '7 days';
-    """)
-    
-    op.execute("""
+    """
+    )
+
+    op.execute(
+        """
         CREATE INDEX CONCURRENTLY idx_telemetry_low_cash 
         ON atm_telemetry (atm_id, time DESC) 
         WHERE cash_level_percent < 20;
-    """)
-    
+    """
+    )
+
     # Create function for latest telemetry per ATM (for dashboard queries)
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION get_latest_atm_telemetry()
         RETURNS TABLE (
             atm_id VARCHAR(20),
@@ -69,10 +79,12 @@ def upgrade() -> None:
             ORDER BY t.atm_id, t.time DESC;
         END;
         $ LANGUAGE plpgsql;
-    """)
-    
+    """
+    )
+
     # Create materialized view for real-time dashboard
-    op.execute("""
+    op.execute(
+        """
         CREATE MATERIALIZED VIEW atm_status_summary AS
         SELECT 
             a.atm_id,
@@ -101,30 +113,36 @@ def upgrade() -> None:
             LIMIT 1
         ) t ON true
         WHERE a.status = 'active';
-    """)
-    
+    """
+    )
+
     # Create unique index for materialized view
-    op.execute("""
+    op.execute(
+        """
         CREATE UNIQUE INDEX idx_status_summary_atm_id 
         ON atm_status_summary (atm_id);
-    """)
-    
+    """
+    )
+
     # Create function to refresh status summary
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION refresh_atm_status_summary()
         RETURNS void AS $
         BEGIN
             REFRESH MATERIALIZED VIEW CONCURRENTLY atm_status_summary;
         END;
         $ LANGUAGE plpgsql;
-    """)
+    """
+    )
+
 
 def downgrade() -> None:
     # Drop functions and views
     op.execute("DROP FUNCTION IF EXISTS refresh_atm_status_summary();")
     op.execute("DROP MATERIALIZED VIEW IF EXISTS atm_status_summary;")
     op.execute("DROP FUNCTION IF EXISTS get_latest_atm_telemetry();")
-    
+
     # Drop indexes
     op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_telemetry_recent_24h;")
     op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_telemetry_errors_recent;")
