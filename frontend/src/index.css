@@ -1,0 +1,95 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 145 80% 96%;
+    --secondary-foreground: 142 76% 36%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 142 70% 95%;
+    --accent-foreground: 142 76% 36%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 142 76% 36%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 162 100% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 162 100% 25%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 162 100% 15%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 162 100% 10%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.data-pulse {
+  animation: pulse-slow 2s infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.status-active {
+  @apply bg-success text-success-foreground;
+}
+
+.status-warning {
+  @apply bg-warning text-warning-foreground;
+}
+
+.status-error {
+  @apply bg-error text-error-foreground;
+}
+
+.status-inactive {
+  @apply bg-muted text-muted-foreground;
+}
+
+/* Custom animations */
+.hover-scale {
+  @apply transition-transform duration-200 hover:scale-105;
+}
+
+.glass-effect {
+  @apply bg-white/10 backdrop-blur-sm border border-white/20;
+}

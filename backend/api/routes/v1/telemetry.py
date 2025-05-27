@@ -3,7 +3,7 @@ from datetime import datetime
 
 from database import get_db
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from schemas.telemetry import TelemetryBatchResponse, TelemetryData, TelemetryResponse
+from schemas.telemetry import TelemetryData, TelemetryResponse
 from services import BackgroundTaskService, CacheService, TelemetryService
 from sqlalchemy.orm import Session
 
@@ -60,34 +60,6 @@ async def receive_telemetry(
     except Exception as e:
         logger.error(f"Telemetry processing error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post("/telemetry/batch", response_model=TelemetryBatchResponse)
-async def receive_telemetry_batch(
-    telemetry_list: list[TelemetryData],
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-):
-    """Optimized batch telemetry ingestion"""
-    try:
-        # Convert to dict list
-        telemetry_data_list = [t.dict() for t in telemetry_list]
-
-        # Process batch
-        result = await telemetry_service.process_telemetry_batch(
-            db, telemetry_data_list
-        )
-
-        return TelemetryBatchResponse(
-            success=result["success"],
-            processed_count=result["processed"],
-            errors=result["errors"],
-            timestamp=datetime.now().isoformat(),
-        )
-
-    except Exception as e:
-        logger.error(f"Batch processing error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/telemetry/{atm_id}/history")
