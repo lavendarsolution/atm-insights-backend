@@ -105,6 +105,16 @@ class Settings(BaseSettings):
         5, description="Max alerts per ATM per hour"
     )
 
+    # JWT settings
+    jwt_secret_key: str = Field(
+        "your-jwt-secret-key", description="Secret key for JWT encoding/decoding"
+    )
+
+    # Google OAuth settings
+    google_client_id: str = Field(
+        "your-google-client-id", description="Google OAuth client ID"
+    )
+
     @field_validator("database_url", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: Optional[str], info) -> str:

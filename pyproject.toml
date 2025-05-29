@@ -5,7 +5,19 @@ description = "The backend of ATM Insights Trial Task"
 authors = [{ name = "Lavendar Solution", email = "lavendarsolution@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["fastapi (>=0.115.12,<0.116.0)", "python-dateutil (>=2.9.0.post0,<3.0.0)", "psycopg2-binary (>=2.9.10,<3.0.0)", "asyncpg (>=0.30.0,<0.31.0)"]
+dependencies = [
+    "fastapi (>=0.115.12,<0.116.0)",
+    "python-dateutil (>=2.9.0.post0,<3.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
+    "asyncpg (>=0.30.0,<0.31.0)",
+    "python-jose[cryptography] (>=3.5.0,<4.0.0)",
+    "passlib[bcrypt] (==1.7.4)",
+    "python-multipart (>=0.0.20,<0.0.21)",
+    "google-auth (>=2.40.2,<3.0.0)",
+    "google-auth-oauthlib (>=1.2.2,<2.0.0)",
+    "google-auth-httplib2 (>=0.2.0,<0.3.0)",
+    "bcrypt (==3.2.0)",
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -13,4 +25,3 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 isort = "^6.0.1"
-

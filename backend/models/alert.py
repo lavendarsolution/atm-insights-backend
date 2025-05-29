@@ -39,7 +39,7 @@ class AlertRule(Base):
     target_atms = Column(JSONB)  # Specific ATMs or regions
 
     # Metadata
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     last_triggered = Column(DateTime)
     trigger_count = Column(Integer, default=0)
 
@@ -73,7 +73,7 @@ class Alert(Base):
     resolved_at = Column(DateTime)
 
     # Assignment
-    acknowledged_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
+    acknowledged_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
 
     # Context data
     trigger_data = Column(JSONB)  # Snapshot of data that triggered the alert
