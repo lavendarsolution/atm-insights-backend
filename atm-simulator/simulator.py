@@ -39,7 +39,7 @@ class ATMSimulator:
 
     def _generate_optimized_telemetry(self, atm: Dict) -> Dict:
         """Generate optimized telemetry with essential fields only"""
-        now = datetime.utcnow()
+        now = datetime.now()
         health = atm["health_factor"]
 
         # Determine status based on health and time
@@ -204,7 +204,7 @@ class ATMSimulator:
 
                 # Small delay between batches to avoid overwhelming the server
                 if i + batch_size < len(self.atms):
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(1)
 
         duration = time.time() - start_time
         success_rate = (

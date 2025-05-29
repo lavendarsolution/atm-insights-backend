@@ -43,7 +43,7 @@ def upgrade() -> None:
 
     # Insert super admin user
     connection = op.get_bind()
-    now = datetime.utcnow()
+    now = datetime.now()
 
     connection.execute(
         users_table.insert().values(

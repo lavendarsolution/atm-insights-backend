@@ -32,9 +32,9 @@ class AuthService:
     ):
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = datetime.now() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(
+            expire = datetime.now() + timedelta(
                 minutes=self.access_token_expire_minutes
             )
 

@@ -5,8 +5,8 @@ from typing import Optional
 SIMULATOR_CONFIG = {
     "num_atms": 612,
     "api_base_url": "http://localhost:8000",
-    "send_interval_seconds": 10,
-    "batch_size": 50,
+    "send_interval_seconds": 15,
+    "batch_size": 20,
 }
 
 REGIONS = ["AIRPORT", "SUPERMARKET", "MALL", "HOSPITAL", "UNIVERSITY"]
