@@ -83,8 +83,8 @@ async def create_atm(atm_data: ATMCreate, db: Session = Depends(get_db)):
 
 @router.get("/atms", response_model=ATMListResponse)
 async def get_atms(
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
+    page: int = Query(0, ge=0, description="Page number (0-based)"),
+    limit: int = Query(10, ge=1, le=1000, description="Number of records to return"),
     status: Optional[str] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search by name or location"),
     region: Optional[str] = Query(
@@ -94,6 +94,9 @@ async def get_atms(
 ):
     """Get list of ATMs with filtering and pagination"""
     try:
+        # Calculate skip based on page
+        skip = page * limit
+
         # Build query
         query = db.query(ATM)
 
@@ -136,7 +139,7 @@ async def get_atms(
                 )
             )
 
-        return ATMListResponse(atms=atm_list, total=total, skip=skip, limit=limit)
+        return ATMListResponse(data=atm_list, page=page, limit=limit, total=total)
 
     except Exception as e:
         logger.error(f"Error getting ATMs: {str(e)}")

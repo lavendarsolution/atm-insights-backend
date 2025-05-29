@@ -1,7 +1,7 @@
 """Create optimized ATM telemetry tables
 
-Revision ID: 0002_create_atm_telemetry_table
-Revises: 0001_create_atm_tables
+Revision ID: 0003_create_atm_telemetry_table
+Revises: 0002_create_atm_tables
 Create Date: 2025-05-26 12:00:00.000000
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "0002_create_atm_telemetry_table"
-down_revision: Union[str, None] = "0001_create_atm_tables"
+revision: str = "0003_create_atm_telemetry_table"
+down_revision: Union[str, None] = "0002_create_atm_tables"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

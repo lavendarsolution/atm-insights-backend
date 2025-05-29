@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from .common import PaginatedResponse
+
 
 class ATMBase(BaseModel):
     """Base ATM schema with common fields"""
@@ -87,16 +89,10 @@ class ATMResponse(ATMBase):
         from_attributes = True
 
 
-class ATMListResponse(BaseModel):
+class ATMListResponse(PaginatedResponse[ATMResponse]):
     """Schema for paginated ATM list response"""
 
-    atms: List[ATMResponse]
-    total: int = Field(..., description="Total number of ATMs matching the filter")
-    skip: int = Field(..., description="Number of records skipped")
-    limit: int = Field(..., description="Number of records returned")
-
-    class Config:
-        from_attributes = True
+    pass
 
 
 class ATMStatusUpdate(BaseModel):
