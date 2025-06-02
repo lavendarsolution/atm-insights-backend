@@ -68,9 +68,13 @@ class ATMSimulator:
 
         # Cash level simulation (most critical metric)
         days_since_maintenance = (now - atm["last_maintenance"]).days
-        daily_usage = random.uniform(5, 15)  # % per day
-        cash_level = max(
-            5, 100 - (days_since_maintenance * daily_usage) + random.uniform(-10, 5)
+        daily_usage = random.uniform(2, 10)  # % per day
+        cash_level = min(
+            max(
+                5,
+                100 - (days_since_maintenance * daily_usage) + random.uniform(-15, 15),
+            ),
+            100,
         )
 
         # Temperature simulation (affected by health and location type)
