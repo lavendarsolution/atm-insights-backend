@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from config import settings
@@ -18,7 +18,7 @@ class AuthService:
     def __init__(self):
         self.secret_key = settings.jwt_secret_key
         self.algorithm = "HS256"
-        self.access_token_expire_minutes = 30
+        self.access_token_expire_minutes = 60
         self.google_client_id = settings.google_client_id
 
     def verify_password(self, plain_password: str, password_hash: str) -> bool:
@@ -32,9 +32,9 @@ class AuthService:
     ):
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.now() + expires_delta
+            expire = datetime.now(timezone.utc) + expires_delta
         else:
-            expire = datetime.now() + timedelta(
+            expire = datetime.now(timezone.utc) + timedelta(
                 minutes=self.access_token_expire_minutes
             )
 

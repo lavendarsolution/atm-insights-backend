@@ -4,7 +4,7 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from api.routes.v1 import atms, auth, dashboard, health, metrics, telemetry
+from api.routes.v1 import atms, auth, dashboard, health, metrics, telemetry, websocket
 
 # Internal imports
 from config import settings
@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from services import BackgroundTaskService, CacheService, TelemetryService
+from services.websocket_service import ConnectionManager, set_connection_manager
 
 # Setup logging
 logging.basicConfig(
@@ -26,12 +27,13 @@ logger = logging.getLogger(__name__)
 cache_service: CacheService = None
 telemetry_service: TelemetryService = None
 background_service: BackgroundTaskService = None
+connection_manager: ConnectionManager = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager with service initialization"""
-    global cache_service, telemetry_service, background_service
+    global cache_service, telemetry_service, background_service, connection_manager
 
     # Startup
     logger.info(f"🚀 Starting {settings.api_title} v{settings.api_version}")
@@ -49,6 +51,13 @@ async def lifespan(app: FastAPI):
         telemetry_service = TelemetryService(cache_service)
         background_service = BackgroundTaskService(cache_service)
 
+        # Initialize WebSocket connection manager
+        connection_manager = ConnectionManager(cache_service)
+        set_connection_manager(connection_manager)
+
+        # Start Redis subscriber for real-time updates
+        await connection_manager.start_redis_subscriber()
+
         # Start background tasks
         await background_service.start()
 
@@ -60,6 +69,7 @@ async def lifespan(app: FastAPI):
         metrics.set_services(cache_service, telemetry_service, background_service)
 
         logger.info("✅ All services initialized successfully")
+        logger.info("📡 WebSocket real-time service ready")
 
         yield
 
@@ -69,6 +79,9 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("🔄 Shutting down application")
+
+    if connection_manager:
+        await connection_manager.stop_redis_subscriber()
 
     if background_service:
         await background_service.stop()
@@ -125,6 +138,9 @@ def create_app() -> FastAPI:
     app.include_router(atms.router, prefix="/api/v1", tags=["atms"])
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
     app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
+
+    # Include WebSocket routes
+    app.include_router(websocket.router, prefix="/api/v1", tags=["websocket"])
 
     return app
 

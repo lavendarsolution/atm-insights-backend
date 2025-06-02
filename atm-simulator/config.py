@@ -5,7 +5,7 @@ from typing import Optional
 SIMULATOR_CONFIG = {
     "num_atms": 612,
     "api_base_url": "http://localhost:8000",
-    "send_interval_seconds": 15,
+    "send_interval_seconds": 30,
     "batch_size": 20,
 }
 

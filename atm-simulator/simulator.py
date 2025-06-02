@@ -42,20 +42,32 @@ class ATMSimulator:
         now = datetime.now()
         health = atm["health_factor"]
 
-        # Determine status based on health and time
-        if health > 0.95:
-            status = "online"
-        elif health > 0.85:
-            status = "online" if random.random() > 0.05 else "error"
-        elif health > 0.75:
-            status = random.choices(
-                ["online", "error", "offline"], weights=[0.7, 0.25, 0.05]
-            )[0]
+        # Calculate error probability: 1 error per hour per ATM
+        # With 5 cycles per minute (12s interval), that's 300 cycles per hour
+        # So error probability = 1/300 = 0.00333 per cycle per ATM
+        error_probability = 1.0 / 300.0  # 1 error per hour per ATM
+
+        # Most ATMs should be online with very low error rates
+        if random.random() < error_probability:
+            # This ATM will have an error this cycle
+            status = "error"
         else:
-            status = random.choices(
-                ["online", "error", "offline", "maintenance"],
-                weights=[0.5, 0.3, 0.15, 0.05],
-            )[0]
+            # Normal operation - mostly online
+            if health > 0.90:
+                status = "online"
+            elif health > 0.80:
+                status = (
+                    "online" if random.random() > 0.005 else "maintenance"
+                )  # Very low maintenance
+            elif health > 0.70:
+                status = random.choices(
+                    ["online", "maintenance"], weights=[0.98, 0.02]  # Mostly online
+                )[0]
+            else:
+                status = random.choices(
+                    ["online", "maintenance", "offline"],
+                    weights=[0.95, 0.04, 0.01],  # Still mostly online
+                )[0]
 
         # Cash level simulation (most critical metric)
         days_since_maintenance = (now - atm["last_maintenance"]).days
@@ -72,34 +84,31 @@ class ATMSimulator:
             base_temp = 24.0  # Less controlled
 
         temperature = (
-            base_temp + random.uniform(-2, 3) + (1 - health) * random.uniform(0, 8)
+            base_temp
+            + random.uniform(-2, 3)
+            + (1 - health) * random.uniform(0, 2)  # Reduced temperature variance
         )
 
-        # System performance metrics
-        cpu_usage = random.uniform(15, 35) + (1 - health) * random.uniform(0, 40)
-        memory_usage = random.uniform(45, 75) + (1 - health) * random.uniform(0, 20)
-        disk_usage = random.uniform(20, 60) + (1 - health) * random.uniform(0, 25)
+        # System performance metrics - normal ranges
+        cpu_usage = random.uniform(15, 30) + (1 - health) * random.uniform(
+            0, 10
+        )  # Normal CPU usage
+        memory_usage = random.uniform(45, 65) + (1 - health) * random.uniform(
+            0, 10
+        )  # Normal memory usage
+        disk_usage = random.uniform(20, 50) + (1 - health) * random.uniform(
+            0, 10
+        )  # Normal disk usage
 
-        # Network status simulation
-        if health > 0.9:
-            network_status = "connected"
-            network_latency = random.randint(50, 200)
-        elif health > 0.8:
-            network_status = random.choices(
-                ["connected", "unstable"], weights=[0.8, 0.2]
-            )[0]
-            network_latency = (
-                random.randint(100, 500)
-                if network_status == "connected"
-                else random.randint(500, 2000)
-            )
-        else:
-            network_status = random.choices(
-                ["connected", "unstable", "disconnected"], weights=[0.6, 0.3, 0.1]
-            )[0]
-            network_latency = (
-                None if network_status == "disconnected" else random.randint(200, 3000)
-            )
+        # Network status - mostly connected
+        network_status = "connected"
+        network_latency = random.randint(50, 200)  # Normal latency range
+
+        # Only disconnect network if status is error
+        if status == "error":
+            if random.random() < 0.3:  # 30% of errors are network related
+                network_status = "disconnected"
+                network_latency = None
 
         # Uptime simulation
         uptime_base = 24 * 3600 * random.randint(1, 30)  # 1-30 days
@@ -123,35 +132,55 @@ class ATMSimulator:
         if network_latency is not None:
             telemetry["network_latency_ms"] = network_latency
 
-        # Add error details for problematic ATMs
-        if status == "error" or (health < 0.9 and random.random() < 0.3):
+        # Add error details only when status is error
+        if status == "error":
             error_code = random.choice(list(ERROR_CODES.keys()))
             telemetry.update(
                 {"error_code": error_code, "error_message": ERROR_CODES[error_code]}
             )
 
-        # Simulate critical conditions for testing alerts
-        if random.random() < 0.02:  # 2% chance for critical conditions
-            critical_condition = random.choice(
-                ["low_cash", "high_temp", "high_cpu", "network_down"]
-            )
+        # Very rarely add critical conditions (separate from errors)
+        if random.random() < 0.001:  # Very rare critical conditions
+            critical_condition = random.choice(["low_cash", "high_temp", "high_cpu"])
 
             if critical_condition == "low_cash":
                 telemetry["cash_level_percent"] = random.uniform(5, 15)
             elif critical_condition == "high_temp":
-                telemetry["temperature_celsius"] = random.uniform(36, 45)
+                telemetry["temperature_celsius"] = random.uniform(35, 40)
             elif critical_condition == "high_cpu":
-                telemetry["cpu_usage_percent"] = random.uniform(85, 99)
-            elif critical_condition == "network_down":
-                telemetry["network_status"] = "disconnected"
-                telemetry.pop("network_latency_ms", None)
+                telemetry["cpu_usage_percent"] = random.uniform(80, 95)
 
         return telemetry
+
+    async def _send_single_telemetry(
+        self, session: aiohttp.ClientSession, telemetry: Dict
+    ) -> bool:
+        """Send telemetry for a single ATM with improved error handling"""
+        try:
+            async with session.post(
+                f"{self.config['api_base_url']}/api/v1/telemetry",
+                json=telemetry,
+                timeout=aiohttp.ClientTimeout(
+                    total=15
+                ),  # Increased timeout from 10 to 15 seconds
+            ) as response:
+                if response.status == 200:
+                    return True
+                else:
+                    logger.warning(f"❌ {telemetry['atm_id']}: HTTP {response.status}")
+                    return False
+
+        except asyncio.TimeoutError:
+            logger.debug(f"⏱️ {telemetry['atm_id']}: Timeout")
+            return False
+        except Exception as e:
+            logger.debug(f"❌ {telemetry['atm_id']}: {str(e)}")
+            return False
 
     async def _send_telemetry_batch(
         self, session: aiohttp.ClientSession, atm_batch: List[Dict]
     ):
-        """Send telemetry for a batch of ATMs"""
+        """Send telemetry for a batch of ATMs with improved concurrency"""
         tasks = []
 
         for atm in atm_batch:
@@ -171,40 +200,26 @@ class ATMSimulator:
 
         return successful, failed
 
-    async def _send_single_telemetry(
-        self, session: aiohttp.ClientSession, telemetry: Dict
-    ) -> bool:
-        """Send telemetry for a single ATM"""
-        try:
-            async with session.post(
-                f"{self.config['api_base_url']}/api/v1/telemetry",
-                json=telemetry,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as response:
-                if response.status == 200:
-                    return True
-                else:
-                    logger.warning(f"❌ {telemetry['atm_id']}: HTTP {response.status}")
-                    return False
-
-        except Exception as e:
-            logger.debug(f"❌ {telemetry['atm_id']}: {str(e)}")
-            return False
-
     async def _simulation_cycle(self):
-        """Run one complete simulation cycle"""
-        batch_size = self.config["batch_size"]
+        """Run one complete simulation cycle with improved batch processing"""
+        batch_size = min(
+            self.config["batch_size"], 50
+        )  # Limit batch size to avoid overwhelming
         start_time = time.time()
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(
+                limit=100, limit_per_host=50
+            )  # Improved connection pooling
+        ) as session:
             # Process ATMs in batches using individual endpoint only
             for i in range(0, len(self.atms), batch_size):
                 batch = self.atms[i : i + batch_size]
                 successful, failed = await self._send_telemetry_batch(session, batch)
 
-                # Small delay between batches to avoid overwhelming the server
+                # Smaller delay between batches to reduce bottlenecks
                 if i + batch_size < len(self.atms):
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.5)  # Reduced from 1 second to 0.5 seconds
 
         duration = time.time() - start_time
         success_rate = (
