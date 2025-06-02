@@ -5,7 +5,9 @@ from typing import List, Optional
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Query
 from models import ATM
+from models.atm_telemetry import ATMTelemetry
 from schemas.atm import ATMCreate, ATMListResponse, ATMResponse, ATMUpdate
+from schemas.common import DeleteResponse
 from services import BackgroundTaskService, CacheService, TelemetryService
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -121,7 +123,7 @@ async def get_atms(
         total = query.count()
 
         # Apply pagination and get results
-        atms = query.offset(skip).limit(limit).all()
+        atms = query.order_by("atm_id").offset(skip).limit(limit).all()
 
         # Convert to response format
         atm_list = []
@@ -225,4 +227,41 @@ async def update_atm(atm_id: str, atm_data: ATMUpdate, db: Session = Depends(get
         raise
     except Exception as e:
         logger.error(f"Error updating ATM {atm_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/atms/{atm_id}", response_model=DeleteResponse)
+async def delete_atm(atm_id: str, db: Session = Depends(get_db)):
+    """Delete an ATM and all its associated telemetry data"""
+    try:
+        # Get existing ATM
+        atm = db.query(ATM).filter(ATM.atm_id == atm_id).first()
+        if not atm:
+            raise HTTPException(status_code=404, detail=f"ATM {atm_id} not found")
+
+        # Count telemetry records that will be deleted
+        telemetry_count = (
+            db.query(ATMTelemetry).filter(ATMTelemetry.atm_id == atm_id).count()
+        )
+
+        # Delete the ATM (telemetry data will be cascade deleted due to foreign key constraint)
+        db.delete(atm)
+        db.commit()
+
+        # Invalidate all relevant cache entries
+        await cache_service.delete(f"atm_details:{atm_id}")
+        await cache_service.invalidate_pattern("atm_*")
+        await cache_service.invalidate_pattern("dashboard_*")
+        await cache_service.invalidate_pattern(f"telemetry_history:{atm_id}")
+        await cache_service.invalidate_pattern("telemetry_*")
+
+        logger.info(f"Deleted ATM: {atm_id} with {telemetry_count} telemetry records")
+
+        return DeleteResponse(
+            message=f"ATM {atm_id} deleted successfully",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting ATM {atm_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

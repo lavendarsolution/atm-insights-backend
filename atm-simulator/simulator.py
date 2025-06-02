@@ -42,10 +42,7 @@ class ATMSimulator:
         now = datetime.now()
         health = atm["health_factor"]
 
-        # Calculate error probability: 1 error per hour per ATM
-        # With 5 cycles per minute (12s interval), that's 300 cycles per hour
-        # So error probability = 1/300 = 0.00333 per cycle per ATM
-        error_probability = 1.0 / 300.0  # 1 error per hour per ATM
+        error_probability = 1.0 / 3600.0
 
         # Most ATMs should be online with very low error rates
         if random.random() < error_probability:

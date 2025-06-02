@@ -139,14 +139,6 @@ class ATMBulkCreateResponse(BaseModel):
     errors: List[str]
 
 
-class ATMDeleteResponse(BaseModel):
-    """Schema for delete response"""
-
-    message: str
-    telemetry_data_preserved: bool
-    telemetry_count: Optional[int] = None
-
-
 # Additional schemas for extended functionality
 class ATMWithTelemetry(ATMResponse):
     """ATM response with latest telemetry data"""

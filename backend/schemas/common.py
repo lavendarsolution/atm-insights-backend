@@ -15,3 +15,9 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
     class Config:
         from_attributes = True
+
+
+class DeleteResponse(BaseModel):
+    """Common delete response schema"""
+
+    message: str = Field(..., description="Success message")

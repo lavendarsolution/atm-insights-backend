@@ -1,7 +1,6 @@
 from .atm import (
     ATMBulkCreateResponse,
     ATMCreate,
-    ATMDeleteResponse,
     ATMError,
     ATMListResponse,
     ATMRegionStats,
@@ -29,7 +28,6 @@ __all__ = [
     "ATMStatusUpdate",
     "ATMSummaryStats",
     "ATMBulkCreateResponse",
-    "ATMDeleteResponse",
     "ATMWithTelemetry",
     "ATMRegionStats",
     "ATMSearchFilters",
