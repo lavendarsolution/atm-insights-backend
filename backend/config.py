@@ -115,6 +115,23 @@ class Settings(BaseSettings):
         "your-google-client-id", description="Google OAuth client ID"
     )
 
+    # Notification Configuration
+    resend_api_key: str = Field(
+        "your-resend-api-key", description="Resend.com API key for email notifications"
+    )
+    notification_from_email: str = Field(
+        "alerts@yourdomain.com", description="From email address for notifications"
+    )
+
+    # Telegram Configuration
+    telegram_bot_token: str = Field(
+        "your-telegram-bot-token", description="Telegram bot token for notifications"
+    )
+    telegram_chat_id: str = Field(
+        "your-telegram-chat-id",
+        description="Default Telegram chat ID for notifications",
+    )
+
     @field_validator("database_url", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: Optional[str], info) -> str:

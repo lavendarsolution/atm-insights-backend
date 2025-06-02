@@ -30,6 +30,10 @@ structlog==23.2.0
 # Environment and configuration
 python-dotenv==1.0.0
 
+# Notification services
+resend==0.7.0
+python-telegram-bot==20.7
+
 # Development and testing (optional)
 pytest==7.4.3
 pytest-asyncio==0.21.1

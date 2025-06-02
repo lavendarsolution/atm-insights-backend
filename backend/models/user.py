@@ -32,5 +32,4 @@ class User(Base):
     )
 
     # Relationships
-    created_alerts = relationship("AlertRule", back_populates="creator")
     acknowledged_alerts = relationship("Alert", back_populates="acknowledged_by_user")

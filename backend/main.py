@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from api.routes.v1 import (
+    alerts,
     analytics,
     atms,
     auth,
@@ -142,6 +143,7 @@ def create_app() -> FastAPI:
 
     # Include routers
     app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
+    app.include_router(alerts.router, prefix="/api/v1", tags=["alerts"])
     app.include_router(telemetry.router, prefix="/api/v1", tags=["telemetry"])
     app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
     app.include_router(atms.router, prefix="/api/v1", tags=["atms"])

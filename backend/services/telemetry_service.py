@@ -237,10 +237,15 @@ class TelemetryService:
             logger.warning(f"Telemetry history cache update failed: {str(e)}")
 
     async def _check_alerts_for_batch(self, telemetry_objects: List[ATMTelemetry]):
-        """Check for alert conditions in the batch"""
+        """Check for alert conditions in the batch using both legacy and rule-based alerts"""
         try:
+            # Import here to avoid circular imports
+            from database.session import async_session_maker
+            from services.alert_service import alert_service
+
             alerts = []
 
+            # Legacy hardcoded alerts (keep for backward compatibility)
             for telemetry in telemetry_objects:
                 # Check critical cash level
                 if (
@@ -324,6 +329,49 @@ class TelemetryService:
                             "timestamp": telemetry.time.isoformat(),
                         }
                     )
+
+            # Rule-based alert checking
+            try:
+                async with async_session_maker() as db:
+                    for telemetry in telemetry_objects:
+                        # Convert telemetry to dict for condition evaluation
+                        telemetry_data = {
+                            "cash_level_percent": telemetry.cash_level_percent,
+                            "temperature_celsius": telemetry.temperature_celsius,
+                            "cpu_usage_percent": telemetry.cpu_usage_percent,
+                            "memory_usage_percent": telemetry.memory_usage_percent,
+                            "disk_usage_percent": telemetry.disk_usage_percent,
+                            "network_latency_ms": telemetry.network_latency_ms,
+                            "uptime_seconds": telemetry.uptime_seconds,
+                            "status": telemetry.status,
+                            "network_status": telemetry.network_status,
+                            "error_code": telemetry.error_code,
+                        }
+
+                        # Check rule-based conditions
+                        rule_alerts = await alert_service.check_alert_conditions(
+                            db, telemetry_data, telemetry.atm_id
+                        )
+
+                        # Convert rule alerts to legacy format for cache compatibility
+                        for rule_alert in rule_alerts:
+                            alerts.append(
+                                {
+                                    "id": f"rule_{rule_alert.alert_id}_{int(telemetry.time.timestamp())}",
+                                    "atm_id": rule_alert.atm_id,
+                                    "severity": rule_alert.severity,
+                                    "type": "rule_based",
+                                    "message": rule_alert.message,
+                                    "timestamp": rule_alert.triggered_at.isoformat(),
+                                    "rule_name": (
+                                        rule_alert.rule.rule_name
+                                        if hasattr(rule_alert, "rule")
+                                        else None
+                                    ),
+                                }
+                            )
+            except Exception as e:
+                logger.error(f"Rule-based alert checking failed: {e}")
 
             # Cache alerts but don't publish them automatically
             # Alerts will be fetched by the frontend with dashboard stats
