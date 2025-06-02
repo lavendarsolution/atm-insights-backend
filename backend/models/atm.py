@@ -13,6 +13,7 @@ class ATM(Base):
     atm_id = Column(String(32), primary_key=True)
     name = Column(String(128), nullable=False)
     location_address = Column(Text)
+    region = Column(String(32), nullable=False, index=True)
     model = Column(String(64))
     manufacturer = Column(String(64))
     status = Column(String(16), default="active", index=True)

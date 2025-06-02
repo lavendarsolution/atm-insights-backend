@@ -11,6 +11,9 @@ class ATMBase(BaseModel):
 
     name: str = Field(..., description="ATM display name", max_length=100)
     location_address: Optional[str] = Field(None, description="ATM physical address")
+    region: str = Field(
+        ..., description="ATM region (AIRPORT, SUPERMARKET, MALL, HOSPITAL, UNIVERSITY)"
+    )
     model: Optional[str] = Field(None, description="ATM model", max_length=50)
     manufacturer: Optional[str] = Field(
         None, description="ATM manufacturer", max_length=50
@@ -34,6 +37,13 @@ class ATMCreate(ATMBase):
             )
         return v.strip().upper()
 
+    @field_validator("region")
+    def validate_region(cls, v):
+        allowed_regions = ["AIRPORT", "SUPERMARKET", "MALL", "HOSPITAL", "UNIVERSITY"]
+        if v not in allowed_regions:
+            raise ValueError(f'Region must be one of: {", ".join(allowed_regions)}')
+        return v
+
     @field_validator("status")
     def validate_status(cls, v):
         if v is None:
@@ -55,11 +65,24 @@ class ATMUpdate(BaseModel):
 
     name: Optional[str] = Field(None, description="ATM display name", max_length=100)
     location_address: Optional[str] = Field(None, description="ATM physical address")
+    region: Optional[str] = Field(
+        None,
+        description="ATM region (AIRPORT, SUPERMARKET, MALL, HOSPITAL, UNIVERSITY)",
+    )
     model: Optional[str] = Field(None, description="ATM model", max_length=50)
     manufacturer: Optional[str] = Field(
         None, description="ATM manufacturer", max_length=50
     )
     status: Optional[str] = Field(None, description="ATM status")
+
+    @field_validator("region")
+    def validate_region(cls, v):
+        if v is None:
+            return v
+        allowed_regions = ["AIRPORT", "SUPERMARKET", "MALL", "HOSPITAL", "UNIVERSITY"]
+        if v not in allowed_regions:
+            raise ValueError(f'Region must be one of: {", ".join(allowed_regions)}')
+        return v
 
     @field_validator("status")
     def validate_status(cls, v):

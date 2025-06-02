@@ -30,11 +30,15 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=20), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("region", sa.String(32), nullable=False, server_default="DEFAULT"),
         sa.PrimaryKeyConstraint("atm_id"),
     )
-    op.create_index(op.f("ix_atms_status"), "atms", ["status"], unique=False)
+
+    op.create_index("ix_atms_status", "atms", ["status"], unique=False)
+    op.create_index("ix_atms_region", "atms", ["region"], unique=False)
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_atms_status"), table_name="atms")
+    op.drop_index("ix_atms_status", "atms")
+    op.drop_index("ix_atms_region", "atms")
     op.drop_table("atms")

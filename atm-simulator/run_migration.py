@@ -23,6 +23,7 @@ async def create_atms():
                 "atm_id": atm_id,
                 "name": f"ATM-{region}-{i:03d}",
                 "location_address": f"Address {i}, {region} Region",
+                "region": region,
                 "model": random.choice(ATM_MODELS),
                 "manufacturer": random.choice(ATM_MANUFACTURERS),
                 "status": "active",

@@ -48,6 +48,7 @@ async def create_atm(atm_data: ATMCreate, db: Session = Depends(get_db)):
             atm_id=atm_data.atm_id,
             name=atm_data.name,
             location_address=atm_data.location_address,
+            region=atm_data.region,
             model=atm_data.model,
             manufacturer=atm_data.manufacturer,
             status=atm_data.status or "active",
@@ -69,6 +70,7 @@ async def create_atm(atm_data: ATMCreate, db: Session = Depends(get_db)):
             atm_id=new_atm.atm_id,
             name=new_atm.name,
             location_address=new_atm.location_address,
+            region=new_atm.region,
             model=new_atm.model,
             manufacturer=new_atm.manufacturer,
             status=new_atm.status,
@@ -90,7 +92,8 @@ async def get_atms(
     status: Optional[str] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search by name or location"),
     region: Optional[str] = Query(
-        None, description="Filter by region (extracted from atm_id)"
+        None,
+        description="Filter by region (AIRPORT, SUPERMARKET, MALL, HOSPITAL, UNIVERSITY)",
     ),
     db: Session = Depends(get_db),
 ):
@@ -117,7 +120,7 @@ async def get_atms(
             )
 
         if region:
-            query = query.filter(ATM.atm_id.like(f"%{region}%"))
+            query = query.filter(ATM.region == region)
 
         # Get total count
         total = query.count()
@@ -133,6 +136,7 @@ async def get_atms(
                     atm_id=atm.atm_id,
                     name=atm.name,
                     location_address=atm.location_address,
+                    region=atm.region,
                     model=atm.model,
                     manufacturer=atm.manufacturer,
                     status=atm.status,
@@ -167,6 +171,7 @@ async def get_atm(atm_id: str, db: Session = Depends(get_db)):
             atm_id=atm.atm_id,
             name=atm.name,
             location_address=atm.location_address,
+            region=atm.region,
             model=atm.model,
             manufacturer=atm.manufacturer,
             status=atm.status,
@@ -216,6 +221,7 @@ async def update_atm(atm_id: str, atm_data: ATMUpdate, db: Session = Depends(get
             atm_id=atm.atm_id,
             name=atm.name,
             location_address=atm.location_address,
+            region=atm.region,
             model=atm.model,
             manufacturer=atm.manufacturer,
             status=atm.status,

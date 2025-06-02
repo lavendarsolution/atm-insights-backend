@@ -4,7 +4,16 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from api.routes.v1 import atms, auth, dashboard, health, metrics, telemetry, websocket
+from api.routes.v1 import (
+    analytics,
+    atms,
+    auth,
+    dashboard,
+    health,
+    metrics,
+    telemetry,
+    websocket,
+)
 
 # Internal imports
 from config import settings
@@ -136,6 +145,7 @@ def create_app() -> FastAPI:
     app.include_router(telemetry.router, prefix="/api/v1", tags=["telemetry"])
     app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
     app.include_router(atms.router, prefix="/api/v1", tags=["atms"])
+    app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
     app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
 
