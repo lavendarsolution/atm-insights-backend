@@ -24,6 +24,8 @@ class ATMSimulator:
         self.atms = self._generate_atm_fleet()
         self.running = False
         self.stats = {"total_sent": 0, "successful": 0, "failed": 0, "start_time": None}
+        # Track cash levels for consistency between cycles
+        self.atm_cash_levels = {}
 
     def _generate_atm_fleet(self) -> List[Dict]:
         """Generate fleet of ATMs with realistic distribution"""
@@ -42,12 +44,26 @@ class ATMSimulator:
         now = datetime.now()
         health = atm["health_factor"]
 
-        error_probability = 1.0 / 3600.0
+        # Generate error every 1-2 hours per ATM (much reduced frequency)
+        # With 30s intervals, this means 1 error every 120-240 cycles per ATM
+        cycles_per_hour = 3600 / 30  # 120 cycles per hour
+        error_probability = 1.0 / (
+            cycles_per_hour * random.uniform(1.0, 2.0)
+        )  # 1-2 hours
 
-        # Most ATMs should be online with very low error rates
-        if random.random() < error_probability:
+        # Check if this ATM should have an error this cycle
+        atm_error_state = atm.get("last_error_time", datetime.min)
+        hours_since_error = (now - atm_error_state).total_seconds() / 3600
+
+        # Only allow errors if it's been at least 1 hour since last error
+        should_generate_error = (
+            random.random() < error_probability and hours_since_error >= 1.0
+        )
+
+        if should_generate_error:
             # This ATM will have an error this cycle
             status = "error"
+            atm["last_error_time"] = now  # Track last error time
         else:
             # Normal operation - mostly online
             if health > 0.90:
@@ -66,16 +82,42 @@ class ATMSimulator:
                     weights=[0.95, 0.04, 0.01],  # Still mostly online
                 )[0]
 
-        # Cash level simulation (most critical metric)
-        days_since_maintenance = (now - atm["last_maintenance"]).days
-        daily_usage = random.uniform(2, 10)  # % per day
-        cash_level = min(
-            max(
-                5,
-                100 - (days_since_maintenance * daily_usage) + random.uniform(-15, 15),
-            ),
-            100,
-        )
+        # Cash level simulation (more realistic with gradual depletion and persistence)
+        atm_id = atm["atm_id"]
+
+        # Get or initialize the last cash level for this ATM
+        if atm_id not in self.atm_cash_levels:
+            # Initialize with a reasonable starting cash level
+            days_since_maintenance = (now - atm["last_maintenance"]).days
+            daily_usage = random.uniform(1, 5)
+            initial_cash = max(20, 100 - (days_since_maintenance * daily_usage))
+            self.atm_cash_levels[atm_id] = initial_cash
+
+        current_cash = self.atm_cash_levels[atm_id]
+
+        # Gradual cash depletion per cycle (very small amounts)
+        # Simulate realistic cash usage per 30-second interval
+        cash_usage_per_cycle = random.uniform(
+            0.1, 0.5
+        )  # Very small depletion per cycle
+
+        # Occasional refill simulation (5% chance per cycle when low)
+        if current_cash < 30 and random.random() < 0.05:
+            # Simulate cash refill
+            current_cash = random.uniform(80, 100)
+            logger.info(f"💰 {atm_id}: Cash refilled to {current_cash:.1f}%")
+        else:
+            # Normal gradual depletion
+            current_cash = max(5, current_cash - cash_usage_per_cycle)
+
+        # Store the updated cash level
+        self.atm_cash_levels[atm_id] = current_cash
+        cash_level = current_cash
+
+        # Only rarely allow critically low levels (1% chance instead of 2%)
+        if random.random() < 0.01:  # 1% chance of critically low cash
+            cash_level = random.uniform(8, 15)
+            self.atm_cash_levels[atm_id] = cash_level
 
         # Temperature simulation (affected by health and location type)
         base_temp = 22.0
@@ -140,13 +182,13 @@ class ATMSimulator:
                 {"error_code": error_code, "error_message": ERROR_CODES[error_code]}
             )
 
-        # Very rarely add critical conditions (separate from errors)
-        if random.random() < 0.001:  # Very rare critical conditions
-            critical_condition = random.choice(["low_cash", "high_temp", "high_cpu"])
+        # Rarely add other critical conditions (separate from errors, excluding low_cash)
+        if (
+            random.random() < 0.0005
+        ):  # Even rarer critical conditions (0.05% instead of 0.1%)
+            critical_condition = random.choice(["high_temp", "high_cpu"])
 
-            if critical_condition == "low_cash":
-                telemetry["cash_level_percent"] = random.uniform(5, 15)
-            elif critical_condition == "high_temp":
+            if critical_condition == "high_temp":
                 telemetry["temperature_celsius"] = random.uniform(35, 40)
             elif critical_condition == "high_cpu":
                 telemetry["cpu_usage_percent"] = random.uniform(80, 95)
@@ -166,6 +208,7 @@ class ATMSimulator:
                 ),  # Increased timeout from 10 to 15 seconds
             ) as response:
                 if response.status == 200:
+
                     return True
                 else:
                     logger.warning(f"❌ {telemetry['atm_id']}: HTTP {response.status}")

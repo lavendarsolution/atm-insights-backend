@@ -8,10 +8,10 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "name": "Low Cash Level",
         "description": "Alert when ATM cash level falls below threshold",
         "default_severity": AlertSeverity.HIGH,
-        "default_threshold": 20.0,  # 20% of capacity
-        "condition_description": "Cash level below 20% of capacity",
+        "default_threshold": 15.0,  # 15% of capacity (reduced from 20%)
+        "condition_description": "Cash level below 15% of capacity",
         "notification_channels": ["email", "telegram"],
-        "cooldown_minutes": 60,
+        "cooldown_minutes": 120,  # Increased from 60 to 120 minutes
         "check_function": "check_low_cash",
         "metric": "cash_level_percentage",
     },
@@ -52,10 +52,10 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "name": "Maintenance Due",
         "description": "Alert when ATM maintenance is due or overdue",
         "default_severity": AlertSeverity.MEDIUM,
-        "default_threshold": 0.0,  # When maintenance is due
-        "condition_description": "Scheduled maintenance is due",
+        "default_threshold": 90.0,  # 90 days since last maintenance
+        "condition_description": "Maintenance overdue (90+ days since last maintenance)",
         "notification_channels": ["email"],
-        "cooldown_minutes": 1440,  # Once per day
+        "cooldown_minutes": 10080,  # Once per week (7 days)
         "check_function": "check_maintenance_due",
         "metric": "days_since_maintenance",
     },

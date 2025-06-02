@@ -108,24 +108,28 @@ class AlertService:
                 if custom_threshold is not None
                 else config["default_threshold"]
             )
-            metric = config.get("metric", "")
 
             # Simple evaluation logic based on rule type
             if rule_type == AlertRuleType.LOW_CASH:
-                cash_level = test_data.get("cash_level_percentage", 100)
-                return cash_level < threshold
+                cash_level = test_data.get("cash_level_percent", 100)
+                return cash_level is not None and cash_level < threshold
 
             elif rule_type == AlertRuleType.HIGH_TRANSACTION_FAILURES:
                 failure_rate = test_data.get("failure_rate_percentage", 0)
                 return failure_rate > threshold
 
             elif rule_type == AlertRuleType.NETWORK_ISSUES:
-                network_failures = test_data.get("network_failures", 0)
-                return network_failures >= threshold
+                network_status = test_data.get("network_status", "connected")
+                network_latency = test_data.get("network_latency_ms", 0)
+                return network_status == "disconnected" or (
+                    network_latency is not None and network_latency > threshold
+                )
 
             elif rule_type == AlertRuleType.HARDWARE_MALFUNCTION:
-                hardware_errors = test_data.get("hardware_errors", 0)
-                return hardware_errors >= threshold
+                # Check for hardware errors via error codes or status
+                error_code = test_data.get("error_code")
+                status = test_data.get("status")
+                return error_code is not None or status == "error"
 
             elif rule_type == AlertRuleType.MAINTENANCE_DUE:
                 days_since_maintenance = test_data.get("days_since_maintenance", 0)
@@ -134,6 +138,15 @@ class AlertService:
             elif rule_type == AlertRuleType.UNUSUAL_ACTIVITY:
                 anomaly_score = test_data.get("activity_anomaly_score", 0)
                 return anomaly_score > threshold
+
+            # Additional condition checks for CPU, temperature, etc.
+            cpu_usage = test_data.get("cpu_usage_percent")
+            if cpu_usage is not None and cpu_usage > 80:
+                return True
+
+            temperature = test_data.get("temperature_celsius")
+            if temperature is not None and (temperature > 35 or temperature < 5):
+                return True
 
             return False
 
@@ -166,6 +179,9 @@ class AlertService:
             # Send notifications if enabled
             if send_notifications:
                 AlertService._send_alert_notifications(db, alert)
+
+            # Broadcast alert to WebSocket connections
+            AlertService._broadcast_alert_update(alert, "new_alert")
 
             return alert
 
@@ -241,6 +257,10 @@ class AlertService:
             db.refresh(alert)
 
             logger.info(f"Updated alert {alert_id}")
+
+            # Broadcast alert update to WebSocket connections
+            AlertService._broadcast_alert_update(alert, "alert_updated")
+
             return alert
 
         except Exception as e:
@@ -325,28 +345,105 @@ class AlertService:
         """Check if any pre-defined alert conditions are met for given ATM data"""
         try:
             alerts_created = []
-            all_rule_configs = get_all_rule_configs()
 
-            for rule_type, config in all_rule_configs.items():
-                # Check cooldown (you might want to implement this in a separate cache/tracking system)
-                # For now, skip cooldown check as it would require storing last trigger times
+            # Define specific alert conditions with their rules
+            alert_checks = [
+                {
+                    "rule_type": AlertRuleType.LOW_CASH,
+                    "condition": lambda data: data.get("cash_level_percent", 100) < 15,
+                    "title": "Critical Cash Level",
+                    "message_template": "Cash level critically low: {cash_level_percent}%",
+                },
+                {
+                    "rule_type": AlertRuleType.HARDWARE_MALFUNCTION,
+                    "condition": lambda data: data.get("error_code") is not None,
+                    "title": "Hardware Error",
+                    "message_template": "Hardware error detected: {error_code} - {error_message}",
+                },
+                {
+                    "rule_type": AlertRuleType.NETWORK_ISSUES,
+                    "condition": lambda data: data.get("network_status")
+                    == "disconnected",
+                    "title": "Network Disconnected",
+                    "message_template": "ATM network connection lost",
+                },
+                {
+                    "rule_type": "HIGH_TEMPERATURE",
+                    "condition": lambda data: data.get("temperature_celsius", 0) > 35,
+                    "title": "High Temperature Alert",
+                    "message_template": "Temperature critically high: {temperature_celsius}°C",
+                },
+                {
+                    "rule_type": "LOW_TEMPERATURE",
+                    "condition": lambda data: data.get("temperature_celsius", 25) < 5,
+                    "title": "Low Temperature Alert",
+                    "message_template": "Temperature critically low: {temperature_celsius}°C",
+                },
+                {
+                    "rule_type": "HIGH_CPU",
+                    "condition": lambda data: data.get("cpu_usage_percent", 0) > 80,
+                    "title": "High CPU Usage",
+                    "message_template": "CPU usage critically high: {cpu_usage_percent}%",
+                },
+            ]
 
-                # Evaluate condition
-                if AlertService._evaluate_condition(rule_type, atm_data):
-                    # Create alert
-                    alert_data = AlertCreate(
-                        rule_type=rule_type,
-                        atm_id=atm_id,
-                        severity=config["default_severity"],
-                        title=f"Alert: {config['name']}",
-                        message=config["description"],
-                        trigger_data=atm_data,
+            for check in alert_checks:
+                if check["condition"](atm_data):
+                    # Check for cooldown to prevent duplicate alerts
+                    # Use longer cooldown for cash level alerts to reduce frequency
+                    cooldown_minutes = (
+                        120 if check["rule_type"] == AlertRuleType.LOW_CASH else 30
                     )
 
-                    alert = AlertService.create_alert(
-                        db, alert_data, send_notifications=True
+                    recent_alert = (
+                        db.query(Alert)
+                        .filter(
+                            Alert.atm_id == atm_id,
+                            Alert.rule_type == check["rule_type"],
+                            Alert.status == "active",
+                            Alert.triggered_at
+                            > datetime.utcnow()
+                            - timedelta(minutes=cooldown_minutes),  # Variable cooldown
+                        )
+                        .first()
                     )
-                    alerts_created.append(alert)
+
+                    if not recent_alert:
+                        # Determine severity based on rule type
+                        severity = "critical"
+                        if check["rule_type"] in [
+                            "HIGH_TEMPERATURE",
+                            "LOW_TEMPERATURE",
+                            "HIGH_CPU",
+                        ]:
+                            severity = "high"
+                        elif check["rule_type"] == AlertRuleType.LOW_CASH:
+                            severity = "critical"
+                        elif check["rule_type"] == AlertRuleType.NETWORK_ISSUES:
+                            severity = "critical"
+                        elif check["rule_type"] == AlertRuleType.HARDWARE_MALFUNCTION:
+                            severity = "critical"
+
+                        # Format message with actual values
+                        try:
+                            message = check["message_template"].format(**atm_data)
+                        except (KeyError, ValueError):
+                            message = check["message_template"]
+
+                        # Create alert
+                        alert_data = AlertCreate(
+                            rule_type=check["rule_type"],
+                            atm_id=atm_id,
+                            severity=severity,
+                            title=check["title"],
+                            message=message,
+                            trigger_data=atm_data,
+                        )
+
+                        alert = AlertService.create_alert(
+                            db, alert_data, send_notifications=True
+                        )
+                        alerts_created.append(alert)
 
             return alerts_created
 
@@ -410,6 +507,78 @@ class AlertService:
 
         except Exception as e:
             logger.error(f"Failed to send alert notifications: {e}")
+
+    @staticmethod
+    def _broadcast_alert_update(alert: Alert, update_type: str):
+        """Broadcast alert update via Redis for WebSocket connections"""
+        try:
+            import asyncio
+            import json
+
+            import redis.asyncio as redis
+            from config import get_settings
+
+            settings = get_settings()
+
+            # Prepare alert data for broadcast
+            alert_data = {
+                "alert_id": str(alert.alert_id),
+                "rule_type": alert.rule_type,
+                "atm_id": alert.atm_id,
+                "severity": alert.severity,
+                "title": alert.title,
+                "message": alert.message,
+                "status": alert.status,
+                "triggered_at": alert.triggered_at.isoformat(),
+                "acknowledged_at": (
+                    alert.acknowledged_at.isoformat() if alert.acknowledged_at else None
+                ),
+                "resolved_at": (
+                    alert.resolved_at.isoformat() if alert.resolved_at else None
+                ),
+                "acknowledged_by": (
+                    str(alert.acknowledged_by) if alert.acknowledged_by else None
+                ),
+                "trigger_data": alert.trigger_data,
+                "resolution_notes": alert.resolution_notes,
+            }
+
+            # Publish to Redis for WebSocket broadcast
+            async def publish_alert():
+                redis_client = redis.Redis.from_url(settings.redis_url)
+                try:
+                    await redis_client.publish(
+                        "alerts_updates",
+                        json.dumps(
+                            {
+                                "type": update_type,
+                                "data": alert_data,
+                            }
+                        ),
+                    )
+                    logger.info(
+                        f"Published alert update {update_type} for alert {alert.alert_id}"
+                    )
+                finally:
+                    await redis_client.close()
+
+            # Run the async function in the current event loop or create one
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If we're already in an async context, schedule it
+                    asyncio.create_task(publish_alert())
+                else:
+                    # If we're in a sync context, run it
+                    loop.run_until_complete(publish_alert())
+            except RuntimeError:
+                # No event loop exists, create one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(publish_alert())
+
+        except Exception as e:
+            logger.error(f"Failed to broadcast alert update: {e}")
 
 
 # Global instance

@@ -24,12 +24,13 @@ class TelemetryService:
     async def process_telemetry_batch(
         self, db: Session, telemetry_list: List[Dict]
     ) -> Dict:
-        """Process telemetry batch with selective real-time updates"""
+        """Process telemetry batch with selective real-time updates and ATM status management"""
         try:
             processed = 0
             errors = []
             status_changes = []
             telemetry_updates = []
+            atm_status_updates = []
 
             # Batch insert for performance
             telemetry_objects = []
@@ -62,6 +63,22 @@ class TelemetryService:
                     # Update status cache
                     self.atm_status_cache[atm_id] = current_status
 
+                    # Update ATM table status if there's an error or status change
+                    if current_status == "error" or (
+                        previous_status and previous_status != current_status
+                    ):
+                        atm_status_updates.append(
+                            {
+                                "atm_id": atm_id,
+                                "status": current_status,
+                                "last_error_code": telemetry_data.get("error_code"),
+                                "last_error_message": telemetry_data.get(
+                                    "error_message"
+                                ),
+                                "updated_at": timestamp,
+                            }
+                        )
+
                     # Create telemetry object
                     telemetry_obj = ATMTelemetry(
                         time=timestamp,
@@ -90,9 +107,14 @@ class TelemetryService:
                         f"Error processing {telemetry_data.get('atm_id', 'unknown')}: {str(e)}"
                     )
 
-            # Bulk insert
+            # Bulk insert telemetry
             if telemetry_objects:
                 db.bulk_save_objects(telemetry_objects)
+
+                # Update ATM statuses in batch
+                if atm_status_updates:
+                    await self._update_atm_statuses(db, atm_status_updates)
+
                 db.commit()
 
                 # Handle real-time updates (status changes only)
@@ -100,7 +122,7 @@ class TelemetryService:
                     telemetry_objects, status_changes, telemetry_updates
                 )
 
-                # Check alerts for critical conditions
+                # Check alerts for critical conditions - now using unified alert system
                 await self._check_alerts_for_batch(telemetry_objects)
 
             return {"processed": processed, "errors": errors, "success": processed > 0}
@@ -116,7 +138,7 @@ class TelemetryService:
         status_changes: List[Dict],
         telemetry_updates: List[Dict],
     ):
-        """Handle selective real-time updates"""
+        """Handle selective real-time updates including error notifications"""
         try:
             # Update cache for each ATM (for API endpoints)
             await self._update_cache_for_batch(telemetry_objects)
@@ -134,6 +156,22 @@ class TelemetryService:
                 logger.info(
                     f"Published status change: ATM {change['atm_id']} {change['old_status']} -> {change['new_status']}"
                 )
+
+            # Publish error notifications for real-time alerts
+            for telemetry_obj in telemetry_objects:
+                if telemetry_obj.error_code:
+                    error_notification = {
+                        "type": "atm_error",
+                        "atm_id": telemetry_obj.atm_id,
+                        "error_code": telemetry_obj.error_code,
+                        "error_message": telemetry_obj.error_message,
+                        "timestamp": telemetry_obj.time.isoformat(),
+                        "status": telemetry_obj.status,
+                    }
+                    await self.cache_service.publish("atm_errors", error_notification)
+                    logger.info(
+                        f"Published error notification for ATM {telemetry_obj.atm_id}: {telemetry_obj.error_code}"
+                    )
 
             # NOTE: Dashboard stats are NOT published here anymore
             # Frontend will fetch them every 15 seconds via API
@@ -236,103 +274,40 @@ class TelemetryService:
         except Exception as e:
             logger.warning(f"Telemetry history cache update failed: {str(e)}")
 
-    async def _check_alerts_for_batch(self, telemetry_objects: List[ATMTelemetry]):
-        """Check for alert conditions in the batch using both legacy and rule-based alerts"""
+    async def _update_atm_statuses(self, db: Session, status_updates: List[Dict]):
+        """Update ATM table statuses when errors occur or status changes"""
         try:
             # Import here to avoid circular imports
-            from database.session import async_session_maker
+            from models.atm import ATM
+
+            for update in status_updates:
+                atm = db.query(ATM).filter(ATM.atm_id == update["atm_id"]).first()
+                if atm:
+                    atm.status = update["status"]
+                    atm.updated_at = update["updated_at"]
+
+                    # If this is an error, we could store additional error info
+                    # For now we'll just update the status
+                    logger.info(
+                        f"Updated ATM {update['atm_id']} status to {update['status']}"
+                    )
+
+        except Exception as e:
+            logger.warning(f"ATM status update failed: {str(e)}")
+
+    async def _check_alerts_for_batch(self, telemetry_objects: List[ATMTelemetry]):
+        """Check for alert conditions using unified alert service only"""
+        try:
+            # Import here to avoid circular imports
+            from database.session import SessionLocal
             from services.alert_service import alert_service
 
             alerts = []
 
-            # Legacy hardcoded alerts (keep for backward compatibility)
-            for telemetry in telemetry_objects:
-                # Check critical cash level
-                if (
-                    telemetry.cash_level_percent is not None
-                    and telemetry.cash_level_percent <= 15
-                ):
-                    alerts.append(
-                        {
-                            "id": f"cash_critical_{telemetry.atm_id}_{int(telemetry.time.timestamp())}",
-                            "atm_id": telemetry.atm_id,
-                            "severity": "critical",
-                            "type": "cash_level_critical",
-                            "message": f"Critical cash level: {telemetry.cash_level_percent}%",
-                            "timestamp": telemetry.time.isoformat(),
-                        }
-                    )
-
-                # Check temperature alerts
-                if telemetry.temperature_celsius is not None:
-                    if telemetry.temperature_celsius > 35:
-                        alerts.append(
-                            {
-                                "id": f"temp_high_{telemetry.atm_id}_{int(telemetry.time.timestamp())}",
-                                "atm_id": telemetry.atm_id,
-                                "severity": "warning",
-                                "type": "temperature_high",
-                                "message": f"High temperature: {telemetry.temperature_celsius}°C",
-                                "timestamp": telemetry.time.isoformat(),
-                            }
-                        )
-                    elif telemetry.temperature_celsius < 5:
-                        alerts.append(
-                            {
-                                "id": f"temp_low_{telemetry.atm_id}_{int(telemetry.time.timestamp())}",
-                                "atm_id": telemetry.atm_id,
-                                "severity": "warning",
-                                "type": "temperature_low",
-                                "message": f"Low temperature: {telemetry.temperature_celsius}°C",
-                                "timestamp": telemetry.time.isoformat(),
-                            }
-                        )
-
-                # Check CPU usage
-                if (
-                    telemetry.cpu_usage_percent is not None
-                    and telemetry.cpu_usage_percent > 80
-                ):
-                    alerts.append(
-                        {
-                            "id": f"cpu_high_{telemetry.atm_id}_{int(telemetry.time.timestamp())}",
-                            "atm_id": telemetry.atm_id,
-                            "severity": "warning",
-                            "type": "cpu_high",
-                            "message": f"High CPU usage: {telemetry.cpu_usage_percent}%",
-                            "timestamp": telemetry.time.isoformat(),
-                        }
-                    )
-
-                # Check error codes
-                if telemetry.error_code:
-                    alerts.append(
-                        {
-                            "id": f"error_{telemetry.atm_id}_{int(telemetry.time.timestamp())}",
-                            "atm_id": telemetry.atm_id,
-                            "severity": "error",
-                            "type": "error_reported",
-                            "message": f"Error {telemetry.error_code}: {telemetry.error_message or 'Unknown error'}",
-                            "timestamp": telemetry.time.isoformat(),
-                        }
-                    )
-
-                # Check network connectivity
-                if telemetry.network_status == "disconnected":
-                    alerts.append(
-                        {
-                            "id": f"network_{telemetry.atm_id}_{int(telemetry.time.timestamp())}",
-                            "atm_id": telemetry.atm_id,
-                            "severity": "critical",
-                            "type": "network_disconnected",
-                            "message": "ATM network disconnected",
-                            "timestamp": telemetry.time.isoformat(),
-                        }
-                    )
-
-            # Rule-based alert checking
+            # Use the unified alert service for all alert checking
             try:
-                async with async_session_maker() as db:
+                db = SessionLocal()
+                try:
                     for telemetry in telemetry_objects:
                         # Convert telemetry to dict for condition evaluation
                         telemetry_data = {
@@ -348,35 +323,34 @@ class TelemetryService:
                             "error_code": telemetry.error_code,
                         }
 
-                        # Check rule-based conditions
-                        rule_alerts = await alert_service.check_alert_conditions(
+                        # Check unified alert conditions - this handles all alert logic
+                        new_alerts = await alert_service.check_alert_conditions(
                             db, telemetry_data, telemetry.atm_id
                         )
 
-                        # Convert rule alerts to legacy format for cache compatibility
-                        for rule_alert in rule_alerts:
+                        # Convert alerts to cache-compatible format for backwards compatibility
+                        for alert in new_alerts:
                             alerts.append(
                                 {
-                                    "id": f"rule_{rule_alert.alert_id}_{int(telemetry.time.timestamp())}",
-                                    "atm_id": rule_alert.atm_id,
-                                    "severity": rule_alert.severity,
-                                    "type": "rule_based",
-                                    "message": rule_alert.message,
-                                    "timestamp": rule_alert.triggered_at.isoformat(),
-                                    "rule_name": (
-                                        rule_alert.rule.rule_name
-                                        if hasattr(rule_alert, "rule")
-                                        else None
-                                    ),
+                                    "id": str(alert.alert_id),
+                                    "atm_id": alert.atm_id,
+                                    "severity": alert.severity,
+                                    "type": alert.rule_type,
+                                    "message": alert.message,
+                                    "timestamp": alert.triggered_at.isoformat(),
+                                    "title": alert.title,
                                 }
                             )
+                except Exception as e:
+                    logger.error(f"Database session error: {e}")
+                    db.rollback()
+                finally:
+                    db.close()
             except Exception as e:
-                logger.error(f"Rule-based alert checking failed: {e}")
+                logger.error(f"Alert checking failed: {e}")
 
-            # Cache alerts but don't publish them automatically
-            # Alerts will be fetched by the frontend with dashboard stats
+            # Update cache with new alerts
             if alerts:
-                # Update recent alerts cache
                 existing_alerts = await self.cache_service.get("recent_alerts") or []
                 combined_alerts = alerts + existing_alerts
                 # Keep only last 50 alerts

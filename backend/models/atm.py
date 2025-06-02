@@ -18,6 +18,11 @@ class ATM(Base):
     manufacturer = Column(String(64))
     status = Column(String(16), default="active", index=True)
 
+    # Error tracking fields
+    last_error_code = Column(String(100), nullable=True)
+    last_error_message = Column(Text, nullable=True)
+    last_error_time = Column(DateTime, nullable=True)
+
     # Relationships
     telemetries = relationship(
         "ATMTelemetry", back_populates="atm", passive_deletes=True

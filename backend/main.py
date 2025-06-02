@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
 
     try:
         # Initialize database
-        await init_db()
+        init_db()
 
         # Initialize services
         cache_service = CacheService()

@@ -31,6 +31,9 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.Column("region", sa.String(32), nullable=False, server_default="DEFAULT"),
+        sa.Column("last_error_code", sa.String(100), nullable=True, server_default=""),
+        sa.Column("last_error_message", sa.Text(), nullable=True, server_default=""),
+        sa.Column("last_error_time", sa.DateTime(), nullable=True, server_default=None),
         sa.PrimaryKeyConstraint("atm_id"),
     )
 

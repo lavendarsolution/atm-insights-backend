@@ -1,4 +1,3 @@
-import asyncio
 import os
 import sys
 from logging.config import fileConfig
@@ -7,7 +6,6 @@ from alembic import context
 from config import settings
 from models import Base
 from sqlalchemy import engine_from_config, pool
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 # Fix PYTHONPATH so app.core.config is resolvable
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -75,7 +73,7 @@ def do_run_migrations(connection):
         context.run_migrations()
 
 
-async def run_migrations_online() -> None:
+def run_migrations_online() -> None:
     """
     Run migrations in 'online' mode.
 
@@ -108,4 +106,4 @@ async def run_migrations_online() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    run_migrations_online()

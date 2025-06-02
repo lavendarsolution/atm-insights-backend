@@ -19,6 +19,7 @@ class ConnectionManager:
         self.atm_detail_connections: Dict[str, Set[WebSocket]] = (
             {}
         )  # atm_id -> connections
+        self.alerts_connections: Set[WebSocket] = set()  # alerts page connections
         self.cache_service = cache_service
         self.redis_subscriber = None
         self.subscriber_task = None
@@ -37,6 +38,7 @@ class ConnectionManager:
             await pubsub.subscribe(
                 "telemetry_updates",  # For ATM detail pages
                 "atm_status_changes",  # For status changes only
+                "alerts_updates",  # For alerts page real-time updates
             )
 
             # Start background task to handle messages
@@ -84,6 +86,8 @@ class ConnectionManager:
                 await self._broadcast_atm_status_change(data)
             elif channel == "telemetry_updates":
                 await self._broadcast_telemetry_update(data)
+            elif channel == "alerts_updates":
+                await self._broadcast_alerts_update(data)
 
         except Exception as e:
             logger.error(f"Error routing message from channel {channel}: {str(e)}")
@@ -173,6 +177,56 @@ class ConnectionManager:
                 del self.atm_detail_connections[atm_id]
 
         logger.info(f"ATM detail disconnected for {atm_id}")
+
+    # Alerts connections
+    async def connect_alerts(self, websocket: WebSocket):
+        """Connect alerts WebSocket"""
+        await websocket.accept()
+        self.alerts_connections.add(websocket)
+        logger.info(
+            f"Alerts connected. Total connections: {len(self.alerts_connections)}"
+        )
+
+        # Send connection confirmation
+        try:
+            await websocket.send_json(
+                {
+                    "type": "alerts_initial",
+                    "message": "Connected to alerts stream",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error sending alerts connection confirmation: {str(e)}")
+
+    def disconnect_alerts(self, websocket: WebSocket):
+        """Disconnect alerts WebSocket"""
+        self.alerts_connections.discard(websocket)
+        logger.info(
+            f"Alerts disconnected. Remaining connections: {len(self.alerts_connections)}"
+        )
+
+    async def _broadcast_alerts_update(self, data: dict):
+        """Broadcast alerts update to all alerts connections"""
+        if not self.alerts_connections:
+            return
+
+        message = {
+            "type": data.get("type", "alert_update"),
+            "data": data.get("data"),
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        disconnected = set()
+        for connection in self.alerts_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                disconnected.add(connection)
+
+        # Remove disconnected connections
+        for conn in disconnected:
+            self.alerts_connections.discard(conn)
 
     async def _broadcast_telemetry_update(self, data: dict):
         """Broadcast telemetry update to ATM detail connections only"""

@@ -174,11 +174,6 @@ class Settings(BaseSettings):
     def is_staging(self) -> bool:
         return self.env == "staging"
 
-    @property
-    def async_database_url(self) -> str:
-        """Get async database URL for async operations"""
-        return self.database_url.replace("postgresql://", "postgresql+asyncpg://")
-
     model_config = ConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )

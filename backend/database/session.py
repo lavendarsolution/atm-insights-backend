@@ -1,9 +1,9 @@
 import logging
+from typing import Generator
 
 from config import settings
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
@@ -59,7 +59,7 @@ def set_postgresql_settings(dbapi_connection, connection_record):
             logger.warning(f"Could not set PostgreSQL settings: {str(e)}")
 
 
-def get_db() -> Session:
+def get_db() -> Generator[Session, None, None]:
     """
     Dependency for getting database session
     Includes proper error handling and cleanup
@@ -75,7 +75,7 @@ def get_db() -> Session:
         db.close()
 
 
-async def init_db():
+def init_db():
     """
     Initialize database with extensions and optimizations
     This runs only database setup, not table creation (handled by Alembic)

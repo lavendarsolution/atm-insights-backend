@@ -6,7 +6,7 @@ SIMULATOR_CONFIG = {
     "num_atms": 612,
     "api_base_url": "http://localhost:8000",
     "send_interval_seconds": 30,
-    "batch_size": 20,
+    "batch_size": 10,
 }
 
 REGIONS = ["AIRPORT", "SUPERMARKET", "MALL", "HOSPITAL", "UNIVERSITY"]
@@ -41,7 +41,10 @@ def generate_atm_config(atm_id: str) -> dict:
         "model": random.choice(ATM_MODELS),
         "health_factor": random.uniform(0.75, 1.0),
         "cash_capacity": random.randint(50000, 200000),
-        "last_maintenance": datetime.now() - timedelta(days=random.randint(1, 30)),
+        "last_maintenance": datetime.now()
+        - timedelta(
+            days=random.randint(30, 120)
+        ),  # More realistic maintenance intervals
         "location_type": random.choice(
             ["mall", "bank_branch", "airport", "convenience_store", "hospital"]
         ),

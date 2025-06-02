@@ -98,21 +98,16 @@ async def alerts_websocket(websocket: WebSocket):
         return
 
     try:
-        await websocket.accept()
-        logger.info("Alerts WebSocket connected")
+        await connection_manager.connect_alerts(websocket)
 
-        # Send initial alerts data
-        # This could be enhanced to send specific alert data
-        await websocket.send_json(
-            {"type": "alerts_initial", "message": "Connected to alerts stream"}
-        )
-
-        # Keep connection alive
+        # Keep connection alive and handle messages
         while True:
             try:
+                # Wait for any client messages (ping/pong, etc.)
                 data = await websocket.receive_text()
                 logger.debug(f"Alerts WebSocket received: {data}")
 
+                # Handle client messages if needed
                 if data == "ping":
                     await websocket.send_text("pong")
 
@@ -126,6 +121,8 @@ async def alerts_websocket(websocket: WebSocket):
         logger.info("Alerts WebSocket disconnected")
     except Exception as e:
         logger.error(f"Alerts WebSocket connection error: {str(e)}")
+    finally:
+        connection_manager.disconnect_alerts(websocket)
 
 
 @router.get("/ws/status")
@@ -139,11 +136,15 @@ async def websocket_status():
     atm_connections = sum(
         len(conns) for conns in connection_manager.atm_detail_connections.values()
     )
+    alerts_connections = len(connection_manager.alerts_connections)
 
     return {
         "status": "active",
         "dashboard_connections": dashboard_connections,
         "atm_detail_connections": atm_connections,
-        "total_connections": dashboard_connections + atm_connections,
+        "alerts_connections": alerts_connections,
+        "total_connections": dashboard_connections
+        + atm_connections
+        + alerts_connections,
         "monitored_atms": list(connection_manager.atm_detail_connections.keys()),
     }
