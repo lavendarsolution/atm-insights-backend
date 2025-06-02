@@ -44,20 +44,20 @@ class ATMSimulator:
         now = datetime.now()
         health = atm["health_factor"]
 
-        # Generate error every 1-2 hours per ATM (much reduced frequency)
-        # With 30s intervals, this means 1 error every 120-240 cycles per ATM
+        # Generate error every 3-6 hours per ATM (further reduced frequency)
+        # With 30s intervals, this means 1 error every 360-720 cycles per ATM
         cycles_per_hour = 3600 / 30  # 120 cycles per hour
         error_probability = 1.0 / (
-            cycles_per_hour * random.uniform(1.0, 2.0)
-        )  # 1-2 hours
+            cycles_per_hour * random.uniform(3.0, 6.0)
+        )  # 3-6 hours (increased from 2-4 hours)
 
         # Check if this ATM should have an error this cycle
         atm_error_state = atm.get("last_error_time", datetime.min)
         hours_since_error = (now - atm_error_state).total_seconds() / 3600
 
-        # Only allow errors if it's been at least 1 hour since last error
+        # Only allow errors if it's been at least 3 hours since last error (increased from 2 hours)
         should_generate_error = (
-            random.random() < error_probability and hours_since_error >= 1.0
+            random.random() < error_probability and hours_since_error >= 3.0
         )
 
         if should_generate_error:
@@ -114,9 +114,9 @@ class ATMSimulator:
         self.atm_cash_levels[atm_id] = current_cash
         cash_level = current_cash
 
-        # Only rarely allow critically low levels (1% chance instead of 2%)
-        if random.random() < 0.01:  # 1% chance of critically low cash
-            cash_level = random.uniform(8, 15)
+        # Further reduce critically low cash events (0.2% chance instead of 0.5%)
+        if random.random() < 0.002:  # 0.2% chance of critically low cash
+            cash_level = random.uniform(8, 12)  # Slightly higher minimum
             self.atm_cash_levels[atm_id] = cash_level
 
         # Temperature simulation (affected by health and location type)
@@ -182,16 +182,20 @@ class ATMSimulator:
                 {"error_code": error_code, "error_message": ERROR_CODES[error_code]}
             )
 
-        # Rarely add other critical conditions (separate from errors, excluding low_cash)
+        # Very rarely add other critical conditions (separate from errors, excluding low_cash)
         if (
-            random.random() < 0.0005
-        ):  # Even rarer critical conditions (0.05% instead of 0.1%)
+            random.random() < 0.0001
+        ):  # Extremely rare critical conditions (0.01% instead of 0.02%)
             critical_condition = random.choice(["high_temp", "high_cpu"])
 
             if critical_condition == "high_temp":
-                telemetry["temperature_celsius"] = random.uniform(35, 40)
+                telemetry["temperature_celsius"] = random.uniform(
+                    38, 42
+                )  # Higher threshold
             elif critical_condition == "high_cpu":
-                telemetry["cpu_usage_percent"] = random.uniform(80, 95)
+                telemetry["cpu_usage_percent"] = random.uniform(
+                    85, 98
+                )  # Higher threshold
 
         return telemetry
 

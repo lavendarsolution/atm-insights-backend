@@ -350,13 +350,15 @@ class AlertService:
             alert_checks = [
                 {
                     "rule_type": AlertRuleType.LOW_CASH,
-                    "condition": lambda data: data.get("cash_level_percent", 100) < 15,
-                    "title": "Critical Cash Level",
+                    "condition": lambda data: data.get("cash_level_percent", 100)
+                    < 10,  # Further reduced from 12% to 10%
+                    "title": "Low Cash Level",
                     "message_template": "Cash level critically low: {cash_level_percent}%",
                 },
                 {
                     "rule_type": AlertRuleType.HARDWARE_MALFUNCTION,
-                    "condition": lambda data: data.get("error_code") is not None,
+                    "condition": lambda data: data.get("error_code") is not None
+                    or data.get("status") == "error",
                     "title": "Hardware Error",
                     "message_template": "Hardware error detected: {error_code} - {error_message}",
                 },
@@ -369,19 +371,22 @@ class AlertService:
                 },
                 {
                     "rule_type": "HIGH_TEMPERATURE",
-                    "condition": lambda data: data.get("temperature_celsius", 0) > 35,
+                    "condition": lambda data: data.get("temperature_celsius", 0)
+                    > 38,  # Increased from 35 to 38
                     "title": "High Temperature Alert",
                     "message_template": "Temperature critically high: {temperature_celsius}°C",
                 },
                 {
                     "rule_type": "LOW_TEMPERATURE",
-                    "condition": lambda data: data.get("temperature_celsius", 25) < 5,
+                    "condition": lambda data: data.get("temperature_celsius", 25)
+                    < 2,  # Decreased from 5 to 2
                     "title": "Low Temperature Alert",
                     "message_template": "Temperature critically low: {temperature_celsius}°C",
                 },
                 {
                     "rule_type": "HIGH_CPU",
-                    "condition": lambda data: data.get("cpu_usage_percent", 0) > 80,
+                    "condition": lambda data: data.get("cpu_usage_percent", 0)
+                    > 85,  # Increased from 80 to 85
                     "title": "High CPU Usage",
                     "message_template": "CPU usage critically high: {cpu_usage_percent}%",
                 },
@@ -390,10 +395,29 @@ class AlertService:
             for check in alert_checks:
                 if check["condition"](atm_data):
                     # Check for cooldown to prevent duplicate alerts
-                    # Use longer cooldown for cash level alerts to reduce frequency
-                    cooldown_minutes = (
-                        120 if check["rule_type"] == AlertRuleType.LOW_CASH else 30
-                    )
+                    # Use extremely long cooldown periods to drastically reduce frequency
+                    if check["rule_type"] == AlertRuleType.LOW_CASH:
+                        cooldown_minutes = (
+                            720  # 12 hours for cash level alerts (increased from 8h)
+                        )
+                    elif check["rule_type"] == AlertRuleType.HARDWARE_MALFUNCTION:
+                        cooldown_minutes = (
+                            720  # 12 hours for hardware errors (doubled from 6h)
+                        )
+                    elif check["rule_type"] == AlertRuleType.NETWORK_ISSUES:
+                        cooldown_minutes = (
+                            240  # 4 hours for network issues (increased from 3h)
+                        )
+                    elif check["rule_type"] in ["HIGH_TEMPERATURE", "LOW_TEMPERATURE"]:
+                        cooldown_minutes = (
+                            360  # 6 hours for temperature alerts (increased from 4h)
+                        )
+                    elif check["rule_type"] == "HIGH_CPU":
+                        cooldown_minutes = (
+                            240  # 4 hours for CPU alerts (increased from 3h)
+                        )
+                    else:
+                        cooldown_minutes = 360  # 6 hours default (increased from 4h)
 
                     recent_alert = (
                         db.query(Alert)
@@ -409,26 +433,78 @@ class AlertService:
                     )
 
                     if not recent_alert:
-                        # Determine severity based on rule type
-                        severity = "critical"
-                        if check["rule_type"] in [
-                            "HIGH_TEMPERATURE",
-                            "LOW_TEMPERATURE",
-                            "HIGH_CPU",
-                        ]:
-                            severity = "high"
-                        elif check["rule_type"] == AlertRuleType.LOW_CASH:
-                            severity = "critical"
-                        elif check["rule_type"] == AlertRuleType.NETWORK_ISSUES:
-                            severity = "critical"
+                        # Determine severity based on rule type and severity of the condition
+                        if check["rule_type"] == AlertRuleType.LOW_CASH:
+                            cash_level = atm_data.get("cash_level_percent", 100)
+                            if cash_level < 10:
+                                severity = "critical"
+                            elif cash_level < 15:
+                                severity = "high"
+                            else:
+                                severity = "medium"
                         elif check["rule_type"] == AlertRuleType.HARDWARE_MALFUNCTION:
-                            severity = "critical"
+                            # Different severity based on error type
+                            error_code = atm_data.get("error_code", "")
+                            if error_code in [
+                                "E002",
+                                "E007",
+                            ]:  # Critical hardware issues
+                                severity = "critical"
+                            elif error_code in ["E001", "E003"]:  # High priority issues
+                                severity = "high"
+                            else:  # Medium priority issues
+                                severity = "medium"
+                        elif check["rule_type"] == AlertRuleType.NETWORK_ISSUES:
+                            severity = "high"  # Reduced from critical
+                        elif check["rule_type"] == "HIGH_TEMPERATURE":
+                            temp = atm_data.get("temperature_celsius", 0)
+                            if temp > 40:
+                                severity = "critical"
+                            elif temp > 37:
+                                severity = "high"
+                            else:
+                                severity = "medium"
+                        elif check["rule_type"] == "LOW_TEMPERATURE":
+                            temp = atm_data.get("temperature_celsius", 25)
+                            if temp < 0:
+                                severity = "critical"
+                            elif temp < 3:
+                                severity = "high"
+                            else:
+                                severity = "medium"
+                        elif check["rule_type"] == "HIGH_CPU":
+                            cpu = atm_data.get("cpu_usage_percent", 0)
+                            if cpu > 95:
+                                severity = "critical"
+                            elif cpu > 85:
+                                severity = "high"
+                            else:
+                                severity = "medium"
+                        else:
+                            severity = "medium"  # Default to medium instead of critical
 
                         # Format message with actual values
                         try:
                             message = check["message_template"].format(**atm_data)
-                        except (KeyError, ValueError):
-                            message = check["message_template"]
+                        except (KeyError, ValueError) as e:
+                            # Handle missing fields gracefully for hardware errors
+                            if check["rule_type"] == AlertRuleType.HARDWARE_MALFUNCTION:
+                                error_code = atm_data.get("error_code", "UNKNOWN")
+                                error_message = atm_data.get(
+                                    "error_message", "Hardware malfunction detected"
+                                )
+                                status = atm_data.get("status", "unknown")
+                                message = f"Hardware error detected: {error_code} - {error_message}"
+                                logger.debug(
+                                    f"Hardware error alert formatting for {atm_id}: error_code={error_code}, error_message={error_message}, status={status}"
+                                )
+                            else:
+                                message = check[
+                                    "title"
+                                ]  # Use title as fallback instead of template with placeholders
+                                logger.warning(
+                                    f"Alert message formatting failed for {check['rule_type']}: {e}"
+                                )
 
                         # Create alert
                         alert_data = AlertCreate(

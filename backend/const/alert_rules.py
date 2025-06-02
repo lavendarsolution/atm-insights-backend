@@ -8,10 +8,10 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "name": "Low Cash Level",
         "description": "Alert when ATM cash level falls below threshold",
         "default_severity": AlertSeverity.HIGH,
-        "default_threshold": 15.0,  # 15% of capacity (reduced from 20%)
-        "condition_description": "Cash level below 15% of capacity",
+        "default_threshold": 12.0,  # 12% of capacity (reduced from 15%)
+        "condition_description": "Cash level below 12% of capacity",
         "notification_channels": ["email", "telegram"],
-        "cooldown_minutes": 120,  # Increased from 60 to 120 minutes
+        "cooldown_minutes": 240,  # Increased to 4 hours
         "check_function": "check_low_cash",
         "metric": "cash_level_percentage",
     },
@@ -22,7 +22,7 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "default_threshold": 10.0,  # 10% failure rate
         "condition_description": "Transaction failure rate above 10%",
         "notification_channels": ["email"],
-        "cooldown_minutes": 30,
+        "cooldown_minutes": 60,  # Increased from 30 to 60 minutes
         "check_function": "check_transaction_failures",
         "metric": "failure_rate_percentage",
     },
@@ -33,18 +33,18 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "default_threshold": 3.0,  # 3 consecutive failures
         "condition_description": "Network connection failures detected",
         "notification_channels": ["email", "telegram"],
-        "cooldown_minutes": 15,
+        "cooldown_minutes": 90,  # Increased to 1.5 hours
         "check_function": "check_network_issues",
         "metric": "network_failures",
     },
     AlertRuleType.HARDWARE_MALFUNCTION: {
         "name": "Hardware Malfunction",
         "description": "Alert when hardware components are malfunctioning",
-        "default_severity": AlertSeverity.CRITICAL,
+        "default_severity": AlertSeverity.HIGH,  # Reduced from CRITICAL to HIGH
         "default_threshold": 1.0,  # Any hardware error
         "condition_description": "Hardware component malfunction detected",
         "notification_channels": ["email", "telegram"],
-        "cooldown_minutes": 5,
+        "cooldown_minutes": 120,  # Increased to 2 hours
         "check_function": "check_hardware_issues",
         "metric": "hardware_errors",
     },
