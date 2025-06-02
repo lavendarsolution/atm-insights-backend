@@ -42,3 +42,13 @@ class LoginRequest(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     token: str
+
+
+class UpdateProfileRequest(BaseModel):
+    full_name: str
+    email: EmailStr
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

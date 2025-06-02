@@ -5,9 +5,11 @@ from dependencies.auth import get_current_active_user, require_admin
 from fastapi import APIRouter, Depends, HTTPException, status
 from models.user import User
 from schemas.auth import (
+    ChangePasswordRequest,
     GoogleAuthRequest,
     LoginRequest,
     Token,
+    UpdateProfileRequest,
     UserCreate,
     UserResponse,
 )
@@ -89,6 +91,65 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 @router.get("/auth/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     return UserResponse.model_validate(current_user)
+
+
+@router.put("/auth/profile", response_model=UserResponse)
+async def update_profile(
+    profile_data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    # Check if email is already taken by another user
+    if profile_data.email != current_user.email:
+        existing_user = (
+            db.query(User)
+            .filter(User.email == profile_data.email, User.id != current_user.id)
+            .first()
+        )
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already taken by another user",
+            )
+
+    # Update user profile
+    current_user.full_name = profile_data.full_name
+    current_user.email = profile_data.email
+
+    db.commit()
+    db.refresh(current_user)
+
+    return UserResponse.model_validate(current_user)
+
+
+@router.put("/auth/change-password")
+async def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    # Verify current password
+    if not current_user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot change password for social login accounts",
+        )
+
+    if not auth_service.verify_password(
+        password_data.current_password, current_user.password_hash
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+
+    # Update password
+    current_user.password_hash = auth_service.get_password_hash(
+        password_data.new_password
+    )
+    db.commit()
+
+    return {"message": "Password changed successfully"}
 
 
 # Admin-only routes
