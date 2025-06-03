@@ -118,24 +118,9 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=(["*"]),
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    if settings.is_production:
-        app.add_middleware(
-            TrustedHostMiddleware,
-            allowed_hosts=["*"],  # Configure appropriately for production
-        )
-
-    # Request timing middleware
-    @app.middleware("http")
-    async def add_process_time_header(request: Request, call_next):
-        start_time = time.time()
-        response = await call_next(request)
-        process_time = time.time() - start_time
-        response.headers["X-Process-Time"] = str(process_time)
-        return response
 
     # Include routers
     app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
