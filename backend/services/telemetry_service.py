@@ -321,6 +321,7 @@ class TelemetryService:
                             "status": telemetry.status,
                             "network_status": telemetry.network_status,
                             "error_code": telemetry.error_code,
+                            "error_message": telemetry.error_message,
                         }
 
                         # Check unified alert conditions - this handles all alert logic

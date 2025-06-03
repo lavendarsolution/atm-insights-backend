@@ -1,13 +1,12 @@
-import os
 from functools import lru_cache
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import ConfigDict, Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Application settings optimized for scalability"""
+    """Application settings"""
 
     # Environment
     env: str = Field(
@@ -16,18 +15,8 @@ class Settings(BaseSettings):
     debug: bool = Field(True, description="Enable debug mode")
 
     # API Configuration
-    api_host: str = Field("0.0.0.0", description="API host")
-    api_port: int = Field(8000, description="API port")
     api_title: str = Field("ATM Insight API", description="API title")
     api_version: str = Field("1.0.0", description="API version")
-
-    # Security
-    secret_key: str = Field(
-        "your-super-secret-key-change-in-production", description="Secret key for JWT"
-    )
-    access_token_expire_minutes: int = Field(
-        30, description="JWT token expiration in minutes"
-    )
 
     # Database Configuration
     postgres_user: str = Field("postgres", description="PostgreSQL username")
@@ -37,73 +26,16 @@ class Settings(BaseSettings):
     postgres_db: str = Field("atm_insights", description="PostgreSQL database name")
     database_url: Optional[str] = Field(None, description="Complete database URL")
 
-    # Database Pool Configuration (for scalability)
-    db_pool_size: int = Field(20, description="Database connection pool size")
-    db_max_overflow: int = Field(40, description="Database max overflow connections")
-    db_pool_timeout: int = Field(30, description="Database pool timeout in seconds")
-    db_pool_recycle: int = Field(
-        3600, description="Database connection recycle time in seconds"
-    )
-
     # Redis Configuration
     redis_host: str = Field("localhost", description="Redis host")
     redis_port: int = Field(6379, description="Redis port")
     redis_password: Optional[str] = Field("redis", description="Redis password")
     redis_db: int = Field(0, description="Redis database number")
     redis_url: Optional[str] = Field(None, description="Complete Redis URL")
-
-    # Redis Pool Configuration
-    redis_pool_size: int = Field(20, description="Redis connection pool size")
     redis_max_connections: int = Field(50, description="Redis max connections")
 
-    # Application Performance Configuration
-    max_connections_count: int = Field(100, description="Max concurrent connections")
-    min_connections_count: int = Field(10, description="Min concurrent connections")
-
-    # Background Task Configuration
-    background_task_workers: int = Field(
-        4, description="Number of background task workers"
-    )
-    telemetry_batch_size: int = Field(
-        1000, description="Telemetry batch processing size"
-    )
-    telemetry_batch_timeout: int = Field(
-        5, description="Telemetry batch timeout in seconds"
-    )
-
-    # Caching Configuration
-    cache_ttl_seconds: int = Field(300, description="Default cache TTL in seconds")
-    dashboard_cache_ttl: int = Field(
-        60, description="Dashboard data cache TTL in seconds"
-    )
-
-    # Rate Limiting
-    rate_limit_requests: int = Field(1000, description="Rate limit requests per minute")
-    rate_limit_window: int = Field(60, description="Rate limit window in seconds")
-
-    # Monitoring and Logging
+    # Logging
     log_level: str = Field("INFO", description="Logging level")
-    enable_metrics: bool = Field(True, description="Enable Prometheus metrics")
-    metrics_port: int = Field(9090, description="Metrics server port")
-
-    # TimescaleDB Configuration
-    timescale_chunk_interval: str = Field(
-        "1 hour", description="TimescaleDB chunk interval"
-    )
-    timescale_compression_after: str = Field(
-        "1 day", description="Enable compression after"
-    )
-    timescale_retention_period: str = Field(
-        "2 years", description="Data retention period"
-    )
-
-    # Alerting Configuration
-    alert_cooldown_default: int = Field(
-        10, description="Default alert cooldown in minutes"
-    )
-    max_alerts_per_atm_per_hour: int = Field(
-        5, description="Max alerts per ATM per hour"
-    )
 
     # JWT settings
     jwt_secret_key: str = Field(
@@ -179,7 +111,7 @@ class Settings(BaseSettings):
         return self.env == "staging"
 
     model_config = ConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="allow"
     )
 
 

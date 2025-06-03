@@ -242,8 +242,50 @@ ATM Insights Monitoring System
 
     def _generate_telegram_message(self, alert_data: Dict, emoji: str) -> str:
         """Generate Telegram message for alert"""
+        # Format the time in the requested format: "May 15th, 2025 10:10:30 pm"
+        formatted_time = "Unknown"
+        triggered_at = alert_data.get("triggered_at")
+        if triggered_at:
+            try:
+                from datetime import datetime
+
+                # Parse ISO datetime string
+                if isinstance(triggered_at, str):
+                    dt = datetime.fromisoformat(triggered_at.replace("Z", "+00:00"))
+                else:
+                    dt = triggered_at
+
+                # Format with ordinal suffix for day
+                day = dt.day
+                if 4 <= day <= 20 or 24 <= day <= 30:
+                    suffix = "th"
+                elif day % 10 == 1:
+                    suffix = "st"
+                elif day % 10 == 2:
+                    suffix = "nd"
+                elif day % 10 == 3:
+                    suffix = "rd"
+                else:
+                    suffix = "th"
+
+                # Format the complete time string
+                formatted_time = dt.strftime(
+                    f"%B {day}{suffix}, %Y %I:%M:%S %p"
+                ).lower()
+                # Capitalize AM/PM and month
+                formatted_time = formatted_time.replace(" am", " AM").replace(
+                    " pm", " PM"
+                )
+                words = formatted_time.split()
+                words[0] = words[0].capitalize()  # Capitalize month
+                formatted_time = " ".join(words)
+
+            except Exception as e:
+                logger.error(f"Failed to format time {triggered_at}: {e}")
+                formatted_time = str(triggered_at)
+
         return f"""
-{emoji} <b>ATM Alert</b>
+{emoji} <b>ATM Insights Notification</b>
 
 <b>{alert_data.get('title', 'Alert')}</b>
 
@@ -251,7 +293,7 @@ ATM Insights Monitoring System
 
 <b>ATM ID:</b> {alert_data.get('atm_id', 'Unknown')}
 <b>Severity:</b> {alert_data.get('severity', 'Unknown').upper()}
-<b>Time:</b> {alert_data.get('triggered_at', 'Unknown')}
+<b>Time:</b> {formatted_time}
 
 Please check your dashboard for more details.
         """

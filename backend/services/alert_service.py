@@ -371,6 +371,27 @@ class AlertService:
                     "message_template": "ATM network connection lost",
                 },
                 {
+                    "rule_type": AlertRuleType.HIGH_TRANSACTION_FAILURES,
+                    "condition": lambda data: data.get("failure_rate_percentage", 0)
+                    > 10,
+                    "title": "High Transaction Failure Rate",
+                    "message_template": "Transaction failure rate critically high: {failure_rate_percentage}%",
+                },
+                {
+                    "rule_type": AlertRuleType.MAINTENANCE_DUE,
+                    "condition": lambda data: data.get("days_since_maintenance", 0)
+                    >= 90,
+                    "title": "Maintenance Overdue",
+                    "message_template": "ATM maintenance overdue: {days_since_maintenance} days since last maintenance",
+                },
+                {
+                    "rule_type": AlertRuleType.UNUSUAL_ACTIVITY,
+                    "condition": lambda data: data.get("activity_anomaly_score", 0)
+                    > 2.0,
+                    "title": "Unusual Activity Detected",
+                    "message_template": "Unusual transaction patterns detected (anomaly score: {activity_anomaly_score})",
+                },
+                {
                     "rule_type": "HIGH_TEMPERATURE",
                     "condition": lambda data: data.get("temperature_celsius", 0)
                     > 38,  # Increased from 35 to 38
@@ -391,34 +412,48 @@ class AlertService:
                     "title": "High CPU Usage",
                     "message_template": "CPU usage critically high: {cpu_usage_percent}%",
                 },
+                {
+                    "rule_type": "HIGH_MEMORY",
+                    "condition": lambda data: data.get("memory_usage_percent", 0) > 85,
+                    "title": "High Memory Usage",
+                    "message_template": "Memory usage critically high: {memory_usage_percent}%",
+                },
+                {
+                    "rule_type": "HIGH_DISK_USAGE",
+                    "condition": lambda data: data.get("disk_usage_percent", 0) > 90,
+                    "title": "High Disk Usage",
+                    "message_template": "Disk usage critically high: {disk_usage_percent}%",
+                },
             ]
 
             for check in alert_checks:
                 if check["condition"](atm_data):
                     # Check for cooldown to prevent duplicate alerts
-                    # Use extremely long cooldown periods to drastically reduce frequency
+                    # Use different cooldown periods for different alert types
                     if check["rule_type"] == AlertRuleType.LOW_CASH:
-                        cooldown_minutes = (
-                            720  # 12 hours for cash level alerts (increased from 8h)
-                        )
+                        cooldown_minutes = 720  # 12 hours for cash level alerts
                     elif check["rule_type"] == AlertRuleType.HARDWARE_MALFUNCTION:
-                        cooldown_minutes = (
-                            720  # 12 hours for hardware errors (doubled from 6h)
-                        )
+                        cooldown_minutes = 720  # 12 hours for hardware errors
                     elif check["rule_type"] == AlertRuleType.NETWORK_ISSUES:
+                        cooldown_minutes = 240  # 4 hours for network issues
+                    elif check["rule_type"] == AlertRuleType.HIGH_TRANSACTION_FAILURES:
+                        cooldown_minutes = 180  # 3 hours for transaction failures
+                    elif check["rule_type"] == AlertRuleType.MAINTENANCE_DUE:
                         cooldown_minutes = (
-                            240  # 4 hours for network issues (increased from 3h)
+                            10080  # 7 days for maintenance alerts (once per week)
                         )
+                    elif check["rule_type"] == AlertRuleType.UNUSUAL_ACTIVITY:
+                        cooldown_minutes = 360  # 6 hours for unusual activity
                     elif check["rule_type"] in ["HIGH_TEMPERATURE", "LOW_TEMPERATURE"]:
-                        cooldown_minutes = (
-                            360  # 6 hours for temperature alerts (increased from 4h)
-                        )
+                        cooldown_minutes = 360  # 6 hours for temperature alerts
                     elif check["rule_type"] == "HIGH_CPU":
-                        cooldown_minutes = (
-                            240  # 4 hours for CPU alerts (increased from 3h)
-                        )
+                        cooldown_minutes = 240  # 4 hours for CPU alerts
+                    elif check["rule_type"] == "HIGH_MEMORY":
+                        cooldown_minutes = 240  # 4 hours for memory alerts
+                    elif check["rule_type"] == "HIGH_DISK_USAGE":
+                        cooldown_minutes = 480  # 8 hours for disk alerts
                     else:
-                        cooldown_minutes = 360  # 6 hours default (increased from 4h)
+                        cooldown_minutes = 360  # 6 hours default
 
                     recent_alert = (
                         db.query(Alert)
@@ -456,7 +491,32 @@ class AlertService:
                             else:  # Medium priority issues
                                 severity = "medium"
                         elif check["rule_type"] == AlertRuleType.NETWORK_ISSUES:
-                            severity = "high"  # Reduced from critical
+                            severity = (
+                                "high"  # Network issues are generally high priority
+                            )
+                        elif (
+                            check["rule_type"]
+                            == AlertRuleType.HIGH_TRANSACTION_FAILURES
+                        ):
+                            failure_rate = atm_data.get("failure_rate_percentage", 0)
+                            if failure_rate > 20:
+                                severity = "critical"
+                            elif failure_rate > 15:
+                                severity = "high"
+                            else:
+                                severity = "medium"
+                        elif check["rule_type"] == AlertRuleType.MAINTENANCE_DUE:
+                            days_overdue = atm_data.get("days_since_maintenance", 0)
+                            if days_overdue > 120:
+                                severity = "high"
+                            else:
+                                severity = "medium"
+                        elif check["rule_type"] == AlertRuleType.UNUSUAL_ACTIVITY:
+                            anomaly_score = atm_data.get("activity_anomaly_score", 0)
+                            if anomaly_score > 3.5:
+                                severity = "high"
+                            else:
+                                severity = "medium"
                         elif check["rule_type"] == "HIGH_TEMPERATURE":
                             temp = atm_data.get("temperature_celsius", 0)
                             if temp > 40:
@@ -481,8 +541,24 @@ class AlertService:
                                 severity = "high"
                             else:
                                 severity = "medium"
+                        elif check["rule_type"] == "HIGH_MEMORY":
+                            memory = atm_data.get("memory_usage_percent", 0)
+                            if memory > 95:
+                                severity = "critical"
+                            elif memory > 90:
+                                severity = "high"
+                            else:
+                                severity = "medium"
+                        elif check["rule_type"] == "HIGH_DISK_USAGE":
+                            disk = atm_data.get("disk_usage_percent", 0)
+                            if disk > 95:
+                                severity = "critical"
+                            elif disk > 92:
+                                severity = "high"
+                            else:
+                                severity = "medium"
                         else:
-                            severity = "medium"  # Default to medium instead of critical
+                            severity = "medium"  # Default to medium
 
                         # Format message with actual values
                         try:
@@ -491,11 +567,15 @@ class AlertService:
                             # Handle missing fields gracefully for hardware errors
                             if check["rule_type"] == AlertRuleType.HARDWARE_MALFUNCTION:
                                 error_code = atm_data.get("error_code", "UNKNOWN")
-                                error_message = atm_data.get(
-                                    "error_message", "Hardware malfunction detected"
-                                )
+                                error_message = atm_data.get("error_message")
                                 status = atm_data.get("status", "unknown")
-                                message = f"Hardware error detected: {error_code} - {error_message}"
+
+                                # Use the actual error message from telemetry data, not a generic fallback
+                                if error_message:
+                                    message = f"Hardware error detected: {error_code} - {error_message}"
+                                else:
+                                    message = f"Hardware error detected: {error_code}"
+
                                 logger.debug(
                                     f"Hardware error alert formatting for {atm_id}: error_code={error_code}, error_message={error_message}, status={status}"
                                 )
