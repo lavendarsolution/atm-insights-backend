@@ -20,14 +20,17 @@ ATM_MANUFACTURERS = [
     "Global Cash Systems",
 ]
 
-ERROR_CODES = {
+ATM_ERROR_CODES = {
     "E001": "Card reader malfunction",
     "E002": "Cash dispenser jam",
     "E003": "Network connectivity issue",
-    "E004": "Low cash warning",
+    "E004": "Cash cassette empty",
     "E005": "Temperature sensor error",
     "E006": "Receipt printer error",
-    "E007": "Keypad malfunction",
+    "E007": "System overheating",
+    "E008": "Memory error",
+    "E009": "Disk full",
+    "E010": "Power supply issue",
 }
 
 

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 import aiohttp
-from config import ERROR_CODES, REGIONS, SIMULATOR_CONFIG, generate_atm_config
+from config import ATM_ERROR_CODES, REGIONS, SIMULATOR_CONFIG, generate_atm_config
 
 # Setup logging
 logging.basicConfig(
@@ -44,20 +44,20 @@ class ATMSimulator:
         now = datetime.now()
         health = atm["health_factor"]
 
-        # Generate error every 3-6 hours per ATM (further reduced frequency)
-        # With 30s intervals, this means 1 error every 360-720 cycles per ATM
+        # Generate error every 9-18 hours per ATM (reduced to 1/3 of previous frequency)
+        # With 30s intervals, this means 1 error every 1080-2160 cycles per ATM
         cycles_per_hour = 3600 / 30  # 120 cycles per hour
         error_probability = 1.0 / (
-            cycles_per_hour * random.uniform(3.0, 6.0)
-        )  # 3-6 hours (increased from 2-4 hours)
+            cycles_per_hour * random.uniform(9.0, 18.0)
+        )  # 9-18 hours (tripled from 3-6 hours)
 
         # Check if this ATM should have an error this cycle
         atm_error_state = atm.get("last_error_time", datetime.min)
         hours_since_error = (now - atm_error_state).total_seconds() / 3600
 
-        # Only allow errors if it's been at least 3 hours since last error (increased from 2 hours)
+        # Only allow errors if it's been at least 9 hours since last error (tripled from 3 hours)
         should_generate_error = (
-            random.random() < error_probability and hours_since_error >= 3.0
+            random.random() < error_probability and hours_since_error >= 9.0
         )
 
         if should_generate_error:
@@ -177,9 +177,9 @@ class ATMSimulator:
 
         # Add error details only when status is error
         if status == "error":
-            error_code = random.choice(list(ERROR_CODES.keys()))
+            error_code = random.choice(list(ATM_ERROR_CODES.keys()))
             telemetry.update(
-                {"error_code": error_code, "error_message": ERROR_CODES[error_code]}
+                {"error_code": error_code, "error_message": ATM_ERROR_CODES[error_code]}
             )
 
         # Very rarely add other critical conditions (separate from errors, excluding low_cash)

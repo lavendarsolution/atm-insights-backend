@@ -122,6 +122,10 @@ class Settings(BaseSettings):
     notification_from_email: str = Field(
         "alerts@yourdomain.com", description="From email address for notifications"
     )
+    notification_target_email: str = Field(
+        "lavendarsolution@gmail.com",
+        description="Target email address for all notifications",
+    )
 
     # Telegram Configuration
     telegram_bot_token: str = Field(

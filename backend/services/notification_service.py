@@ -16,13 +16,30 @@ class NotificationService:
     """Service for sending notifications via email and Telegram"""
 
     def __init__(self):
+        # Initialize Resend
         self.resend_client = resend
         resend.api_key = settings.resend_api_key
-        self.telegram_bot = (
-            Bot(token=settings.telegram_bot_token)
-            if settings.telegram_bot_token != "your-telegram-bot-token"
-            else None
+        logger.info(
+            f"Resend API key configured: {bool(settings.resend_api_key and settings.resend_api_key != 'your-resend-api-key')}"
         )
+
+        # Initialize Telegram Bot
+        if (
+            settings.telegram_bot_token
+            and settings.telegram_bot_token != "your-telegram-bot-token"
+        ):
+            try:
+                self.telegram_bot = Bot(token=settings.telegram_bot_token)
+                logger.info(
+                    f"Telegram bot initialized successfully with token: {settings.telegram_bot_token[:10]}..."
+                )
+                logger.info(f"Telegram chat ID configured: {settings.telegram_chat_id}")
+            except Exception as e:
+                logger.error(f"Failed to initialize Telegram bot: {e}")
+                self.telegram_bot = None
+        else:
+            logger.warning("Telegram bot token not configured")
+            self.telegram_bot = None
 
     async def send_email_notification(
         self,
@@ -66,17 +83,22 @@ class NotificationService:
         """Send Telegram notification"""
         try:
             if not self.telegram_bot:
-                logger.warning(
-                    "Telegram bot not configured, skipping Telegram notification"
+                logger.error(
+                    f"Telegram bot not configured. Token: {settings.telegram_bot_token[:10]}... (length: {len(settings.telegram_bot_token)})"
                 )
                 return False
 
             target_chat_id = chat_id or settings.telegram_chat_id
             if target_chat_id == "your-telegram-chat-id":
-                logger.warning(
+                logger.error(
                     "Telegram chat ID not configured, skipping Telegram notification"
                 )
                 return False
+
+            logger.info(
+                f"Attempting to send Telegram message to chat_id: {target_chat_id}"
+            )
+            logger.debug(f"Message content: {message[:100]}...")
 
             await self.telegram_bot.send_message(
                 chat_id=target_chat_id, text=message, parse_mode=parse_mode
@@ -84,10 +106,16 @@ class NotificationService:
             logger.info(f"Telegram message sent successfully to chat {target_chat_id}")
             return True
         except TelegramError as e:
-            logger.error(f"Failed to send Telegram notification: {e}")
+            logger.error(f"Telegram API error: {e}")
+            logger.error(
+                f"Chat ID: {target_chat_id}, Bot token configured: {bool(self.telegram_bot)}"
+            )
             return False
         except Exception as e:
             logger.error(f"Unexpected error sending Telegram notification: {e}")
+            logger.error(
+                f"Chat ID: {target_chat_id}, Bot token configured: {bool(self.telegram_bot)}"
+            )
             return False
 
     async def send_alert_notification(

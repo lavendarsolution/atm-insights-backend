@@ -10,7 +10,7 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "default_severity": AlertSeverity.HIGH,
         "default_threshold": 12.0,  # 12% of capacity (reduced from 15%)
         "condition_description": "Cash level below 12% of capacity",
-        "notification_channels": ["email", "telegram"],
+        "notification_channels": ["telegram", "email"],  # All alerts to Telegram
         "cooldown_minutes": 240,  # Increased to 4 hours
         "check_function": "check_low_cash",
         "metric": "cash_level_percentage",
@@ -21,7 +21,7 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "default_severity": AlertSeverity.MEDIUM,
         "default_threshold": 10.0,  # 10% failure rate
         "condition_description": "Transaction failure rate above 10%",
-        "notification_channels": ["email"],
+        "notification_channels": ["telegram"],  # All alerts to Telegram
         "cooldown_minutes": 60,  # Increased from 30 to 60 minutes
         "check_function": "check_transaction_failures",
         "metric": "failure_rate_percentage",
@@ -32,7 +32,7 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "default_severity": AlertSeverity.HIGH,
         "default_threshold": 3.0,  # 3 consecutive failures
         "condition_description": "Network connection failures detected",
-        "notification_channels": ["email", "telegram"],
+        "notification_channels": ["telegram"],  # All alerts to Telegram
         "cooldown_minutes": 90,  # Increased to 1.5 hours
         "check_function": "check_network_issues",
         "metric": "network_failures",
@@ -43,7 +43,7 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "default_severity": AlertSeverity.HIGH,  # Reduced from CRITICAL to HIGH
         "default_threshold": 1.0,  # Any hardware error
         "condition_description": "Hardware component malfunction detected",
-        "notification_channels": ["email", "telegram"],
+        "notification_channels": ["telegram"],  # All alerts to Telegram
         "cooldown_minutes": 120,  # Increased to 2 hours
         "check_function": "check_hardware_issues",
         "metric": "hardware_errors",
@@ -54,7 +54,7 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "default_severity": AlertSeverity.MEDIUM,
         "default_threshold": 90.0,  # 90 days since last maintenance
         "condition_description": "Maintenance overdue (90+ days since last maintenance)",
-        "notification_channels": ["email"],
+        "notification_channels": ["telegram", "email"],  # All alerts to Telegram
         "cooldown_minutes": 10080,  # Once per week (7 days)
         "check_function": "check_maintenance_due",
         "metric": "days_since_maintenance",
@@ -65,7 +65,7 @@ ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
         "default_severity": AlertSeverity.MEDIUM,
         "default_threshold": 2.0,  # 2 standard deviations from normal
         "condition_description": "Transaction patterns deviate significantly from normal",
-        "notification_channels": ["email"],
+        "notification_channels": ["telegram"],  # All alerts to Telegram
         "cooldown_minutes": 120,
         "check_function": "check_unusual_activity",
         "metric": "activity_anomaly_score",

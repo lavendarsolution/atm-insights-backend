@@ -324,7 +324,7 @@ class TelemetryService:
                         }
 
                         # Check unified alert conditions - this handles all alert logic
-                        new_alerts = await alert_service.check_alert_conditions(
+                        new_alerts = alert_service.check_alert_conditions(
                             db, telemetry_data, telemetry.atm_id
                         )
 

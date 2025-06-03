@@ -94,20 +94,6 @@ class TelemetryBatchResponse(BaseModel):
     timestamp: str
 
 
-# Error codes for MVP
-ATM_ERROR_CODES = {
-    "E001": "Card reader malfunction",
-    "E002": "Cash dispenser jam",
-    "E003": "Network connectivity issue",
-    "E004": "Cash cassette empty",
-    "E005": "Temperature sensor error",
-    "E006": "Receipt printer error",
-    "E007": "System overheating",
-    "E008": "Memory error",
-    "E009": "Disk full",
-    "E010": "Power supply issue",
-}
-
 # Alert thresholds for monitoring
 ALERT_THRESHOLDS = {
     "cash_level_critical": 15,  # Below 15% cash

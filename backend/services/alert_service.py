@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from uuid import UUID
 
+from config import settings
 from const.alert_rules import get_all_rule_configs, get_rule_config, get_rule_types
 from models.alert import Alert
 from models.atm import ATM
@@ -536,7 +537,13 @@ class AlertService:
             if not config:
                 return
 
+            # Base channels from rule configuration (all alerts go to Telegram)
             channels = config.get("notification_channels", [])
+
+            # Add email for critical alerts
+            if alert.severity == AlertSeverity.CRITICAL and "email" not in channels:
+                channels = channels + ["email"]
+
             if not channels:
                 return
 
@@ -551,13 +558,21 @@ class AlertService:
                 "rule_name": config["name"],
             }
 
-            # Get user emails if email notifications are enabled
+            # Get notification target emails if email notifications are enabled
             user_emails = []
             if "email" in channels:
-                # Get users who should receive notifications (you may want to customize this)
-                users_query = db.query(User).filter(User.is_active == True)
-                users = users_query.all()
-                user_emails = [user.email for user in users if user.email]
+                # Use configured target email for all notifications
+                if (
+                    settings.notification_target_email
+                    and settings.notification_target_email
+                    != "lavendarsolution@gmail.com"
+                ):
+                    user_emails = [settings.notification_target_email]
+                else:
+                    # Fallback to default target email
+                    user_emails = ["lavendarsolution@gmail.com"]
+
+                logger.info(f"Email notifications will be sent to: {user_emails}")
 
             # Since notification_service is async, we need to handle this properly
             # For now, we'll use a basic approach - in production you might want to use a task queue
