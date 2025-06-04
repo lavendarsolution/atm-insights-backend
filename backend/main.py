@@ -14,6 +14,7 @@ from api.routes.v1 import (
     metrics,
     telemetry,
     websocket,
+    predictions,  
 )
 
 # Internal imports
@@ -26,6 +27,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from services import BackgroundTaskService, CacheService, TelemetryService
 from services.metrics_service import metrics_middleware, metrics_service
 from services.websocket_service import ConnectionManager, set_connection_manager
+from services.ml_service import VectorizedMLPredictionService
 
 # Setup logging
 logging.basicConfig(
@@ -39,12 +41,14 @@ cache_service: CacheService = None
 telemetry_service: TelemetryService = None
 background_service: BackgroundTaskService = None
 connection_manager: ConnectionManager = None
+ml_service: VectorizedMLPredictionService = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager with service initialization"""
     global cache_service, telemetry_service, background_service, connection_manager
+    global ml_service  # ADD THIS
 
     # Startup
     logger.info(f"🚀 Starting {settings.api_title} v{settings.api_version}")
@@ -65,12 +69,19 @@ async def lifespan(app: FastAPI):
         telemetry_service = TelemetryService(cache_service)
         background_service = BackgroundTaskService(cache_service)
 
+        # ADD ML SERVICE INITIALIZATION
+        ml_service = VectorizedMLPredictionService(cache_service)
+        await ml_service.initialize()
+
         # Initialize WebSocket connection manager
         connection_manager = ConnectionManager(cache_service)
         set_connection_manager(connection_manager)
 
         # Start Redis subscriber for real-time updates
         await connection_manager.start_redis_subscriber()
+
+        # # Start background tasks with ML service
+        # await background_service.start(ml_service)
 
         # Start background tasks
         await background_service.start()
@@ -81,14 +92,12 @@ async def lifespan(app: FastAPI):
         atms.set_services(cache_service, telemetry_service, background_service)
         health.set_services(cache_service, telemetry_service, background_service)
         metrics.set_services(cache_service, telemetry_service, background_service)
-
-        # Start metrics collection background task
-        if settings.prometheus_enabled:
-            asyncio.create_task(start_metrics_collection())
+        predictions.set_services(ml_service, telemetry_service)
 
         logger.info("✅ All services initialized successfully")
         logger.info("📡 WebSocket real-time service ready")
         logger.info("📊 Prometheus metrics collection started")
+        logger.info("🤖 ML prediction service ready")  # ADD THIS
 
         yield
 
@@ -196,6 +205,9 @@ def create_app() -> FastAPI:
     app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
     app.include_router(health.router, prefix="", tags=["health"])
     app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
+
+    # Include Predictions routes
+    app.include_router(predictions.router, prefix="/api/v1", tags=["predictions"])
 
     # Include WebSocket routes
     app.include_router(websocket.router, prefix="/api/v1", tags=["websocket"])
