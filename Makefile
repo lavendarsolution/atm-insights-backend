@@ -95,3 +95,8 @@ test:
 status:
 	@echo "📊 Service Status:"
 	docker-compose ps
+
+# Model Training
+model-training:
+	@echo "🚀 Starting model training..."
+	docker-compose exec backend poetry run python train_models.py --trials 100 --cv-folds 5 --timeout 3600 --workers 8
