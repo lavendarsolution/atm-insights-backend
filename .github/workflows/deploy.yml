@@ -22,5 +22,6 @@ jobs:
             cd /app/atm-insights-backend
             git pull
             make build
+            make monitoring
             make run
             make db-migrate

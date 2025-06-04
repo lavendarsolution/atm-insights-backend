@@ -18,6 +18,18 @@ class Settings(BaseSettings):
     api_title: str = Field("ATM Insight API", description="API title")
     api_version: str = Field("1.0.0", description="API version")
 
+    # Monitoring Configuration
+    prometheus_enabled: bool = Field(True, description="Enable Prometheus metrics")
+    metrics_enabled: bool = Field(
+        True, description="Enable application metrics collection"
+    )
+    enable_metrics: bool = Field(True, description="Enable metrics endpoint")
+
+    # Grafana Configuration
+    grafana_enabled: bool = Field(True, description="Enable Grafana integration")
+    grafana_user: str = Field("admin", description="Grafana admin username")
+    grafana_password: str = Field("admin", description="Grafana admin password")
+
     # Database Configuration
     postgres_user: str = Field("postgres", description="PostgreSQL username")
     postgres_password: str = Field("postgres", description="PostgreSQL password")
