@@ -201,7 +201,7 @@ backend/
 
 ```http
 GET /health
-GET /api/v1/health
+GET /health
 ```
 
 #### Dashboard Statistics

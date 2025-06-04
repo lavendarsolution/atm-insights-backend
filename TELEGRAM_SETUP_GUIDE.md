@@ -31,25 +31,6 @@ This guide will help you set up Telegram notifications for your ATM Insights mon
 2. **Start the bot** and it will immediately send you your chat ID
 3. **Copy the ID** - it will look like a number (e.g., `123456789`)
 
-### Option B: Using Telegram Web/Desktop
-
-1. **Open Telegram Web** (web.telegram.org) or use Telegram Desktop
-2. **Start a chat** with your newly created bot
-3. **Send any message** to your bot (e.g., "Hello")
-4. **Get your chat ID** by visiting this URL in your browser:
-   ```
-   https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates
-   ```
-   Replace `<YOUR_BOT_TOKEN>` with your actual bot token
-5. **Find your chat ID** in the JSON response under `message.chat.id`
-
-### Option C: Using curl (Command Line)
-
-```bash
-# Send a message to your bot first, then run:
-curl -s "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates" | grep -o '"chat":{"id":[0-9]*' | grep -o '[0-9]*'
-```
-
 ## Step 3: Configure Your ATM Insights Backend
 
 ### Environment Variables

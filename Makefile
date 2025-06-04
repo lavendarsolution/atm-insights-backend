@@ -55,7 +55,7 @@ monitoring-down:
 # Start with development tools
 dev:
 	@echo "🚀 Starting development environment..."
-	docker-compose --profile tools up backend postgres redis pgadmin -d
+	docker-compose --profile tools up postgres redis pgadmin -d
 	@echo ""
 	@echo "🎉 Development environment started!"
 	@echo "  🔧 API Documentation: http://localhost:8000/docs"

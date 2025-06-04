@@ -194,7 +194,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
     app.include_router(atms.router, prefix="/api/v1", tags=["atms"])
     app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
-    app.include_router(health.router, prefix="/api/v1", tags=["health"])
+    app.include_router(health.router, prefix="", tags=["health"])
     app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
 
     # Include WebSocket routes
