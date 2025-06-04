@@ -351,10 +351,17 @@ class AlertService:
             alert_checks = [
                 {
                     "rule_type": AlertRuleType.LOW_CASH,
+                    "condition": lambda data: data.get("cash_level_percent", 100) >= 10
+                    and data.get("cash_level_percent", 100) < 20,  # Warning: 10-20%
+                    "title": "Cash Level Warning",
+                    "message_template": "Cash level low: {cash_level_percent}% - Refill recommended",
+                },
+                {
+                    "rule_type": AlertRuleType.CRITICAL_LOW_CASH,
                     "condition": lambda data: data.get("cash_level_percent", 100)
-                    < 10,  # Further reduced from 12% to 10%
-                    "title": "Low Cash Level",
-                    "message_template": "Cash level critically low: {cash_level_percent}%",
+                    < 10,  # Critical: <10%
+                    "title": "Critical Cash Level",
+                    "message_template": "Cash level critically low: {cash_level_percent}% - Immediate refill required",
                 },
                 {
                     "rule_type": AlertRuleType.HARDWARE_MALFUNCTION,
@@ -431,7 +438,9 @@ class AlertService:
                     # Check for cooldown to prevent duplicate alerts
                     # Use different cooldown periods for different alert types
                     if check["rule_type"] == AlertRuleType.LOW_CASH:
-                        cooldown_minutes = 720  # 12 hours for cash level alerts
+                        cooldown_minutes = 720  # 12 hours for cash warnings
+                    elif check["rule_type"] == AlertRuleType.CRITICAL_LOW_CASH:
+                        cooldown_minutes = 480  # 8 hours for critical cash alerts
                     elif check["rule_type"] == AlertRuleType.HARDWARE_MALFUNCTION:
                         cooldown_minutes = 720  # 12 hours for hardware errors
                     elif check["rule_type"] == AlertRuleType.NETWORK_ISSUES:
@@ -471,13 +480,21 @@ class AlertService:
                     if not recent_alert:
                         # Determine severity based on rule type and severity of the condition
                         if check["rule_type"] == AlertRuleType.LOW_CASH:
+                            # Cash warning at 10-20% range
                             cash_level = atm_data.get("cash_level_percent", 100)
-                            if cash_level < 10:
-                                severity = "critical"
-                            elif cash_level < 15:
-                                severity = "high"
+                            if cash_level < 15:
+                                severity = (
+                                    "high"  # More urgent if very close to critical
+                                )
                             else:
-                                severity = "medium"
+                                severity = "medium"  # Standard warning
+                        elif check["rule_type"] == AlertRuleType.CRITICAL_LOW_CASH:
+                            # Critical cash alert below 10%
+                            cash_level = atm_data.get("cash_level_percent", 100)
+                            if cash_level < 5:
+                                severity = "critical"  # Extremely low
+                            else:
+                                severity = "high"  # Still critical but not as severe
                         elif check["rule_type"] == AlertRuleType.HARDWARE_MALFUNCTION:
                             # Different severity based on error type
                             error_code = atm_data.get("error_code", "")
@@ -615,13 +632,17 @@ class AlertService:
             # Get rule config for notification channels
             config = get_rule_config(AlertRuleType(alert.rule_type))
             if not config:
+                logger.warning(f"No config found for rule type: {alert.rule_type}")
                 return
 
-            # Base channels from rule configuration (all alerts go to Telegram)
+            # Base channels from rule configuration
             channels = config.get("notification_channels", [])
 
-            # Add email for critical alerts
-            if alert.severity == AlertSeverity.CRITICAL and "email" not in channels:
+            # For CRITICAL_LOW_CASH, ensure both Telegram and Email are included
+            if alert.rule_type == "critical_low_cash" and "email" not in channels:
+                channels = channels + ["email"]
+            # For any critical severity alert, add email if not already present
+            elif alert.severity == AlertSeverity.CRITICAL and "email" not in channels:
                 channels = channels + ["email"]
 
             if not channels:

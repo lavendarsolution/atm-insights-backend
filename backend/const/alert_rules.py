@@ -5,14 +5,28 @@ from schemas.alert import AlertRuleType, AlertSeverity
 # Pre-defined alert rule configurations
 ALERT_RULE_CONFIGS: Dict[AlertRuleType, Dict[str, Any]] = {
     AlertRuleType.LOW_CASH: {
-        "name": "Low Cash Level",
-        "description": "Alert when ATM cash level falls below threshold",
-        "default_severity": AlertSeverity.HIGH,
-        "default_threshold": 12.0,  # 12% of capacity (reduced from 15%)
-        "condition_description": "Cash level below 12% of capacity",
-        "notification_channels": ["telegram", "email"],  # All alerts to Telegram
-        "cooldown_minutes": 240,  # Increased to 4 hours
+        "name": "Cash Level Warning",
+        "description": "Warning when ATM cash level falls below 20%",
+        "default_severity": AlertSeverity.MEDIUM,
+        "default_threshold": 20.0,  # 20% of capacity for warning
+        "condition_description": "Cash level below 20% of capacity - Refill recommended",
+        "notification_channels": ["telegram"],  # Only Telegram for warnings
+        "cooldown_minutes": 720,  # 12 hours cooldown for warnings
         "check_function": "check_low_cash",
+        "metric": "cash_level_percentage",
+    },
+    AlertRuleType.CRITICAL_LOW_CASH: {
+        "name": "Critical Cash Level",
+        "description": "Critical alert when ATM cash level falls below 10%",
+        "default_severity": AlertSeverity.CRITICAL,
+        "default_threshold": 10.0,  # 10% of capacity for critical alert
+        "condition_description": "Cash level critically low below 10% - Immediate refill required",
+        "notification_channels": [
+            "telegram",
+            "email",
+        ],  # Both Telegram and Email for critical
+        "cooldown_minutes": 480,  # 8 hours cooldown for critical alerts
+        "check_function": "check_critical_low_cash",
         "metric": "cash_level_percentage",
     },
     AlertRuleType.HIGH_TRANSACTION_FAILURES: {

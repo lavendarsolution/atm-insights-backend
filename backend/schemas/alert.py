@@ -10,6 +10,7 @@ class AlertRuleType(str, Enum):
     """Pre-defined alert rule types"""
 
     LOW_CASH = "low_cash"
+    CRITICAL_LOW_CASH = "critical_low_cash"
     HIGH_TRANSACTION_FAILURES = "high_transaction_failures"
     NETWORK_ISSUES = "network_issues"
     HARDWARE_MALFUNCTION = "hardware_malfunction"
