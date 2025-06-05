@@ -7,6 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-atm_insights}
+      TIMESCALEDB_TELEMETRY: "off"
     command: |
       postgres 
       -c shared_preload_libraries=timescaledb 
