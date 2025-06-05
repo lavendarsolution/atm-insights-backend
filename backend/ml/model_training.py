@@ -1,7 +1,7 @@
 import logging
 import os
 import pickle
-import time  # Add this import
+import time  
 import warnings
 from datetime import datetime
 from typing import Dict, List, Tuple
@@ -208,7 +208,7 @@ class ATMFailureModelTrainer:
         return feature_matrix, sample_indices
 
     def time_series_cross_validate(self, X, y, df, sample_indices):
-        """Enhanced time-series cross-validation with proper parameter handling"""
+        """Time-series cross-validation with proper parameter handling"""
         logger.info("Starting time-series cross-validation...")
 
         n_folds = self.cv_folds
@@ -634,8 +634,8 @@ class ATMFailureModelTrainer:
             raise
 
     def full_training_pipeline(self, db_session):
-        """Enhanced training pipeline with proper error handling"""
-        logger.info("🚀 Starting enhanced training pipeline...")
+        """Training pipeline with proper error handling"""
+        logger.info("🚀 Starting training pipeline...")
 
         try:
             # Step 1: Data preparation
@@ -698,7 +698,7 @@ class ATMFailureModelTrainer:
                 {
                     "base_score": base_score,
                     "random_state": 42,
-                    "eval_metric": "auc",  # Changed from 'logloss' to 'auc'
+                    "eval_metric": "auc",  
                     "n_jobs": self.n_jobs,
                 }
             )

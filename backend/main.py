@@ -48,7 +48,7 @@ ml_service: VectorizedMLPredictionService = None
 async def lifespan(app: FastAPI):
     """Application lifespan manager with service initialization"""
     global cache_service, telemetry_service, background_service, connection_manager
-    global ml_service  # ADD THIS
+    global ml_service 
 
     # Startup
     logger.info(f"🚀 Starting {settings.api_title} v{settings.api_version}")
@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
         telemetry_service = TelemetryService(cache_service)
         background_service = BackgroundTaskService(cache_service)
 
-        # ADD ML SERVICE INITIALIZATION
+        # ML SERVICE INITIALIZATION
         ml_service = VectorizedMLPredictionService(cache_service)
         await ml_service.initialize()
 
@@ -79,9 +79,6 @@ async def lifespan(app: FastAPI):
 
         # Start Redis subscriber for real-time updates
         await connection_manager.start_redis_subscriber()
-
-        # # Start background tasks with ML service
-        # await background_service.start(ml_service)
 
         # Start background tasks
         await background_service.start()
@@ -97,7 +94,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ All services initialized successfully")
         logger.info("📡 WebSocket real-time service ready")
         logger.info("📊 Prometheus metrics collection started")
-        logger.info("🤖 ML prediction service ready")  # ADD THIS
+        logger.info("🤖 ML prediction service ready")  
 
         yield
 
@@ -170,10 +167,10 @@ def create_app() -> FastAPI:
         redoc_url="/redoc" if settings.is_development else None,
     )
 
-    # Add middleware for performance and security
+    # Middleware for performance and security
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-    # Add metrics middleware if Prometheus is enabled
+    # Metrics middleware if Prometheus is enabled
     if getattr(settings, "prometheus_enabled", True):
         app.middleware("http")(metrics_middleware)
 
@@ -185,7 +182,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Add Prometheus metrics endpoint
+    # Prometheus metrics endpoint
     @app.get("/metrics")
     async def get_prometheus_metrics():
         """Prometheus metrics endpoint"""
@@ -206,7 +203,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="", tags=["health"])
     app.include_router(metrics.router, prefix="/api/v1", tags=["metrics"])
 
-    # Include Predictions routes
+    # Include ML Predictions routes
     app.include_router(predictions.router, prefix="/api/v1", tags=["predictions"])
 
     # Include WebSocket routes
