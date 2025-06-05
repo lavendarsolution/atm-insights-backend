@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     redis_url: Optional[str] = Field(None, description="Complete Redis URL")
     redis_max_connections: int = Field(50, description="Redis max connections")
 
+    # Cache Configuration
+    dashboard_cache_ttl: int = Field(60, description="Dashboard cache TTL in seconds")
+
     # Logging
     log_level: str = Field("INFO", description="Logging level")
 
