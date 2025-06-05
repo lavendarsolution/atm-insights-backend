@@ -23,5 +23,5 @@ jobs:
             git pull
             make build
             make monitoring
-            make run
+            make up
             make db-migrate

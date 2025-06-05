@@ -105,6 +105,50 @@ graph TB
 - **PostgreSQL + TimescaleDB**: Optimized time-series storage
 - **Redis**: Real-time pub/sub and caching
 
+## 🔮 Failure Prediction Principle
+
+### Prediction Model Overview
+
+The ATM monitoring system employs a sophisticated machine learning approach for predictive maintenance, designed to anticipate ATM failures before they occur and minimize operational downtime.
+
+### Core Prediction Logic
+
+Since the current ATM simulator generates random signals, it is assumed that the **'failure'** sign occurs **2~4 hours before 'maintenance'**, and **'failure'** is designated for **5 critical errors**. The remaining errors can be recovered on their own, simulating the real world where not all errors lead to 'failure'.
+
+### Feature Engineering & Model Architecture
+
+- **28 feature parameters** were used as feature engineering
+- **'failure'** prediction performed using **Scikit-learn's XGBoost**
+- The model is trained using the **past 24 hours of data**
+- Predicts **'failure'** that will occur within the **next 4 hours**
+
+### Real-world Application
+
+In practice, there is a trend of ATM performance decline before 'failure' occurs, and the prediction time can be increased to **24~48 hours or more** depending on the specific environment.
+
+### Performance Optimizations
+
+The following optimization methods were applied to increase prediction accuracy and inference speed:
+
+1. **Hyperparameter optimization with Optuna** - Automated tuning for optimal model performance
+2. **Time-series cross-validation** - Robust validation strategy for temporal data
+3. **Parallel feature extraction** - Use ProcessPoolExecutor for **10x speedup**
+4. **Bulk database queries** - Single query for multiple ATMs
+5. **Vectorized predictions** - Batch process multiple predictions
+
+### Prediction Workflow
+
+```mermaid
+graph LR
+    A[ATM Telemetry] --> B[Feature Extraction]
+    B --> C[XGBoost Model]
+    C --> D[Failure Prediction]
+    D --> E[Alert Generation]
+    E --> F[Maintenance Scheduling]
+```
+
+This predictive approach enables proactive maintenance scheduling, reducing unexpected downtime and improving overall ATM network reliability.
+
 ## 🐳 Docker Commands Reference
 
 ### Quick Commands (via Makefile)

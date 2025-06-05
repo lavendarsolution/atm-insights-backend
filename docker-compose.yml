@@ -4,8 +4,8 @@ services:
     image: timescale/timescaledb:latest-pg15
     container_name: atm_postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-atm_insights}
       POSTGRES_HOST_AUTH_METHOD: trust
       TIMESCALEDB_TELEMETRY: "off"
@@ -28,7 +28,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-atm_insights}",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-atm_insights}",
         ]
       interval: 10s
       timeout: 5s
@@ -170,7 +170,7 @@ services:
     ports:
       - "9187:9187"
     environment:
-      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-atm_insights}?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-atm_insights}?sslmode=disable
     networks:
       - atm_network
     restart: unless-stopped
